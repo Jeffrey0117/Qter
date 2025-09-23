@@ -12,6 +12,9 @@ import { Dashboard } from './pages/Dashboard';
 import { FormEditor } from './pages/forms/FormEditor';
 import FormPreview from './pages/forms/FormPreview';
 import FormResponses from './pages/forms/FormResponses';
+import FormShare from './pages/forms/FormShare';
+import FormAnalytics from './pages/forms/FormAnalytics';
+import FormFill from './pages/fill/FormFill';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -33,6 +36,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/f/:id" element={<FormFill />} />
 
             {/* Private Routes */}
             <Route
@@ -52,7 +56,8 @@ function App() {
               <Route path="forms/:id" element={<FormPreview />} />
               <Route path="forms/:id/preview" element={<FormPreview />} />
               <Route path="forms/:id/responses" element={<FormResponses />} />
-              <Route path="forms/:id/share" element={<div className="text-center py-12"><h1 className="text-2xl">分享表單 (即將推出)</h1></div>} />
+              <Route path="forms/:id/share" element={<FormShare />} />
+              <Route path="forms/:id/analytics" element={<FormAnalytics />} />
             </Route>
 
             {/* Catch all - redirect to login */}

@@ -153,6 +153,12 @@ class ApiService {
     return this.axiosInstance.get(`/forms/${id}`);
   }
 
+  // Public form (for filling)
+  async getPublicForm(id: number) {
+    // backend mounts formRoutes at /api with public route GET /public/:id
+    return this.axiosInstance.get(`/public/${id}`);
+  }
+
   async createForm(data: any) {
     return this.axiosInstance.post('/forms', data);
   }
