@@ -9,6 +9,9 @@ import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { Dashboard } from './pages/Dashboard';
+import { FormEditor } from './pages/forms/FormEditor';
+import FormPreview from './pages/forms/FormPreview';
+import FormResponses from './pages/forms/FormResponses';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -43,11 +46,13 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               
-              {/* Placeholder routes for future implementation */}
-              <Route path="forms/new" element={<div className="text-center py-12"><h1 className="text-2xl">建立新表單 (即將推出)</h1></div>} />
-              <Route path="forms/:id" element={<div className="text-center py-12"><h1 className="text-2xl">檢視表單 (即將推出)</h1></div>} />
-              <Route path="forms/:id/edit" element={<div className="text-center py-12"><h1 className="text-2xl">編輯表單 (即將推出)</h1></div>} />
-              <Route path="forms/:id/responses" element={<div className="text-center py-12"><h1 className="text-2xl">表單回應 (即將推出)</h1></div>} />
+              {/* Forms routes */}
+              <Route path="forms/new" element={<FormEditor />} />
+              <Route path="forms/:id/edit" element={<FormEditor />} />
+              <Route path="forms/:id" element={<FormPreview />} />
+              <Route path="forms/:id/preview" element={<FormPreview />} />
+              <Route path="forms/:id/responses" element={<FormResponses />} />
+              <Route path="forms/:id/share" element={<div className="text-center py-12"><h1 className="text-2xl">分享表單 (即將推出)</h1></div>} />
             </Route>
 
             {/* Catch all - redirect to login */}
