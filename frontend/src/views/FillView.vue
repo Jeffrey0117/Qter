@@ -1,0 +1,424 @@
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+
+const router = useRouter()
+const route = useRoute()
+
+// 題目類型定義
+type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'divider'
+
+interface Option {
+  id: string
+  text: string
+}
+
+interface Question {
+  id: string
+  type: QuestionType
+  title: string
+  description?: string
+  required: boolean
+  options?: Option[]
+}
+
+interface Form {
+  id: string
+  title: string
+  description: string
+  questions: Question[]
+}
+
+interface Response {
+  questionId: string
+  answer: string | string[]
+}
+
+// 表單資料
+const form = ref<Form | null>(null)
+const responses = reactive<Map<string, string | string[]>>(new Map())
+const currentQuestionIndex = ref(0)
+const errors = reactive<Map<string, string>>(new Map())
+const isSubmitting = ref(false)
+const isSubmitted = ref(false)
+
+// 計算屬性
+const currentQuestion = computed(() => {
+  if (!form.value) return null
+  return form.value.questions[currentQuestionIndex.value]
+})
+
+const progress = computed(() => {
+  if (!form.value || form.value.questions.length === 0) return 0
+  return Math.round(((currentQuestionIndex.value + 1) / form.value.questions.length) * 100)
+})
+
+const isFirstQuestion = computed(() => currentQuestionIndex.value === 0)
+const isLastQuestion = computed(() => {
+  if (!form.value) return false
+  return currentQuestionIndex.value === form.value.questions.length - 1
+})
+
+// 載入表單
+onMounted(() => {
+  const formId = route.params.id
+  if (formId) {
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const savedForm = savedForms.find((f: any) => f.id === formId)
+    if (savedForm) {
+      form.value = savedForm
+      // 載入暫存的答案
+      const savedResponses = localStorage.getItem(`qter_response_${formId}`)
+      if (savedResponses) {
+        const parsed = JSON.parse(savedResponses)
+        Object.entries(parsed).forEach(([key, value]) => {
+          responses.set(key, value as string | string[])
+        })
+      }
+    } else {
+      alert('找不到問卷')
+      router.push('/')
+    }
+  }
+})
+
+// 驗證當前問題
+const validateCurrentQuestion = () => {
+  if (!currentQuestion.value) return true
+  
+  errors.clear()
+  
+  if (currentQuestion.value.type === 'divider') return true
+  
+  const response = responses.get(currentQuestion.value.id)
+  
+  if (currentQuestion.value.required && !response) {
+    errors.set(currentQuestion.value.id, '此題為必填')
+    return false
+  }
+  
+  if (currentQuestion.value.type === 'checkbox' && currentQuestion.value.required) {
+    if (!response || (Array.isArray(response) && response.length === 0)) {
+      errors.set(currentQuestion.value.id, '請至少選擇一個選項')
+      return false
+    }
+  }
+  
+  return true
+}
+
+// 儲存暫存答案
+const saveProgress = () => {
+  if (!form.value) return
+  
+  const responseObj: Record<string, string | string[]> = {}
+  responses.forEach((value, key) => {
+    responseObj[key] = value
+  })
+  
+  localStorage.setItem(`qter_response_${form.value.id}`, JSON.stringify(responseObj))
+}
+
+// 下一題
+const nextQuestion = () => {
+  if (!validateCurrentQuestion()) return
+  
+  saveProgress()
+  
+  if (!isLastQuestion.value) {
+    currentQuestionIndex.value++
+  }
+}
+
+// 上一題
+const previousQuestion = () => {
+  if (!isFirstQuestion.value) {
+    errors.clear()
+    currentQuestionIndex.value--
+  }
+}
+
+// 提交表單
+const submitForm = async () => {
+  if (!validateCurrentQuestion()) return
+  if (!form.value) return
+  
+  isSubmitting.value = true
+  saveProgress()
+  
+  // 驗證所有必填題目
+  let hasError = false
+  for (const question of form.value.questions) {
+    if (question.type !== 'divider' && question.required) {
+      const response = responses.get(question.id)
+      if (!response || (Array.isArray(response) && response.length === 0)) {
+        hasError = true
+        break
+      }
+    }
+  }
+  
+  if (hasError) {
+    alert('請填寫所有必填題目')
+    isSubmitting.value = false
+    return
+  }
+  
+  // 儲存回應到 localStorage
+  const allResponses = JSON.parse(localStorage.getItem('qter_all_responses') || '{}')
+  if (!allResponses[form.value.id]) {
+    allResponses[form.value.id] = []
+  }
+  
+  const responseData = {
+    id: `res_${Date.now()}`,
+    formId: form.value.id,
+    responses: Object.fromEntries(responses),
+    submittedAt: new Date().toISOString()
+  }
+  
+  allResponses[form.value.id].push(responseData)
+  localStorage.setItem('qter_all_responses', JSON.stringify(allResponses))
+  
+  // 清除暫存答案
+  localStorage.removeItem(`qter_response_${form.value.id}`)
+  
+  setTimeout(() => {
+    isSubmitting.value = false
+    isSubmitted.value = true
+  }, 500)
+}
+
+// 重新填寫
+const resetForm = () => {
+  responses.clear()
+  errors.clear()
+  currentQuestionIndex.value = 0
+  isSubmitted.value = false
+  if (form.value) {
+    localStorage.removeItem(`qter_response_${form.value.id}`)
+  }
+}
+
+// 返回首頁
+const goHome = () => {
+  router.push('/')
+}
+
+// 處理單選題
+const handleRadioChange = (questionId: string, optionId: string) => {
+  responses.set(questionId, optionId)
+  errors.delete(questionId)
+}
+
+// 處理多選題
+const handleCheckboxChange = (questionId: string, optionId: string, checked: boolean) => {
+  const current = responses.get(questionId) as string[] || []
+  if (checked) {
+    responses.set(questionId, [...current, optionId])
+  } else {
+    responses.set(questionId, current.filter(id => id !== optionId))
+  }
+  errors.delete(questionId)
+}
+
+// 處理文字輸入
+const handleTextInput = (questionId: string, value: string) => {
+  responses.set(questionId, value)
+  if (value) {
+    errors.delete(questionId)
+  }
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- 成功提交畫面 -->
+    <div v-if="isSubmitted" class="min-h-screen flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div class="text-6xl mb-4">✅</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">感謝您的回應！</h2>
+        <p class="text-gray-600 mb-6">您的答案已成功提交</p>
+        <div class="space-y-3">
+          <button
+            @click="resetForm"
+            class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            重新填寫
+          </button>
+          <button
+            @click="goHome"
+            class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            返回首頁
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表單填寫界面 -->
+    <div v-else-if="form" class="min-h-screen flex flex-col">
+      <!-- 頂部進度條 -->
+      <div class="bg-white shadow-sm">
+        <div class="max-w-2xl mx-auto px-4 py-4">
+          <div class="flex items-center justify-between mb-2">
+            <button
+              @click="goHome"
+              class="text-gray-600 hover:text-gray-900"
+            >
+              ← 返回
+            </button>
+            <span class="text-sm text-gray-600">
+              {{ currentQuestionIndex + 1 }} / {{ form.questions.length }}
+            </span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div
+              class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              :style="`width: ${progress}%`"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 表單內容 -->
+      <main class="flex-1 flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl">
+          <!-- 表單標題（只在第一題顯示） -->
+          <div v-if="currentQuestionIndex === 0" class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ form.title }}</h1>
+            <p v-if="form.description" class="text-gray-600">{{ form.description }}</p>
+          </div>
+
+          <!-- 當前題目 -->
+          <div v-if="currentQuestion" class="bg-white rounded-2xl shadow-lg p-8">
+            <!-- 分隔線 -->
+            <div v-if="currentQuestion.type === 'divider'" class="py-4">
+              <hr class="border-t-2 border-gray-300" />
+            </div>
+
+            <!-- 一般題目 -->
+            <div v-else>
+              <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                {{ currentQuestion.title }}
+                <span v-if="currentQuestion.required" class="text-red-500 ml-1">*</span>
+              </h2>
+              <p v-if="currentQuestion.description" class="text-gray-600 mb-6">
+                {{ currentQuestion.description }}
+              </p>
+
+              <!-- 單行文字 -->
+              <div v-if="currentQuestion.type === 'text'" class="space-y-2">
+                <input
+                  :value="responses.get(currentQuestion.id) || ''"
+                  @input="handleTextInput(currentQuestion.id, ($event.target as HTMLInputElement).value)"
+                  type="text"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="您的答案"
+                />
+              </div>
+
+              <!-- 多行文字 -->
+              <div v-else-if="currentQuestion.type === 'textarea'" class="space-y-2">
+                <textarea
+                  :value="responses.get(currentQuestion.id) || ''"
+                  @input="handleTextInput(currentQuestion.id, ($event.target as HTMLTextAreaElement).value)"
+                  rows="4"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  placeholder="您的答案"
+                />
+              </div>
+
+              <!-- 單選題 -->
+              <div v-else-if="currentQuestion.type === 'radio'" class="space-y-3">
+                <label
+                  v-for="option in currentQuestion.options"
+                  :key="option.id"
+                  class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  :class="{
+                    'border-blue-500 bg-blue-50': responses.get(currentQuestion.id) === option.id
+                  }"
+                >
+                  <input
+                    type="radio"
+                    :name="`question_${currentQuestion.id}`"
+                    :checked="responses.get(currentQuestion.id) === option.id"
+                    @change="handleRadioChange(currentQuestion.id, option.id)"
+                    class="mr-3 text-blue-500"
+                  />
+                  <span class="text-gray-700">{{ option.text }}</span>
+                </label>
+              </div>
+
+              <!-- 多選題 -->
+              <div v-else-if="currentQuestion.type === 'checkbox'" class="space-y-3">
+                <label
+                  v-for="option in currentQuestion.options"
+                  :key="option.id"
+                  class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  :class="{
+                    'border-blue-500 bg-blue-50': (responses.get(currentQuestion.id) as string[] || []).includes(option.id)
+                  }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="(responses.get(currentQuestion.id) as string[] || []).includes(option.id)"
+                    @change="handleCheckboxChange(currentQuestion.id, option.id, ($event.target as HTMLInputElement).checked)"
+                    class="mr-3 text-blue-500"
+                  />
+                  <span class="text-gray-700">{{ option.text }}</span>
+                </label>
+              </div>
+
+              <!-- 錯誤訊息 -->
+              <div v-if="errors.has(currentQuestion.id)" class="mt-3 text-red-500 text-sm">
+                {{ errors.get(currentQuestion.id) }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按鈕 -->
+          <div class="flex justify-between mt-6">
+            <button
+              @click="previousQuestion"
+              :disabled="isFirstQuestion"
+              :class="[
+                'px-6 py-3 rounded-lg font-medium transition-all',
+                isFirstQuestion
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+              ]"
+            >
+              上一題
+            </button>
+
+            <button
+              v-if="!isLastQuestion"
+              @click="nextQuestion"
+              class="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 shadow-md transition-all"
+            >
+              下一題
+            </button>
+            
+            <button
+              v-else
+              @click="submitForm"
+              :disabled="isSubmitting"
+              class="px-8 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 shadow-md transition-all disabled:opacity-50"
+            >
+              {{ isSubmitting ? '提交中...' : '提交' }}
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 載入中 -->
+    <div v-else class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p class="text-gray-600">載入問卷中...</p>
+      </div>
+    </div>
+  </div>
+</template>
