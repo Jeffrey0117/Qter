@@ -1,133 +1,38 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+// API 服務層
+import type { Form, Question } from '../types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// API 基礎配置
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 
-class ApiService {
-  private axiosInstance: AxiosInstance;
-  private refreshPromise: Promise<string> | null = null;
+// 通用 API 請求函數
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`
 
-  constructor() {
-    this.axiosInstance = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Request interceptor to add auth token
-    this.axiosInstance.interceptors.request.use(
-      (config) => {
-        const token = this.getAccessToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor to handle token refresh
-    this.axiosInstance.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError) => {
-        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-
-          try {
-            if (!this.refreshPromise) {
-              this.refreshPromise = this.refreshToken();
-            }
-            const newToken = await this.refreshPromise;
-            this.refreshPromise = null;
-            
-            if (newToken && originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            }
-            return this.axiosInstance(originalRequest);
-          } catch (refreshError) {
-            this.clearTokens();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
-          }
-        }
-
-        return Promise.reject(error);
-      }
-    );
+  const config: RequestInit = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
   }
 
-  private getAccessToken(): string | null {
-    return localStorage.getItem('accessToken');
-  }
-
-  private getRefreshToken(): string | null {
-    return localStorage.getItem('refreshToken');
-  }
-
-  private setTokens(accessToken: string, refreshToken: string) {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-  }
-
-  private clearTokens() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-  }
-
-  private async refreshToken(): Promise<string> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    try {
-      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-        refreshToken,
-      });
-
-      const { accessToken, refreshToken: newRefreshToken } = response.data;
-      this.setTokens(accessToken, newRefreshToken);
-      return accessToken;
-    } catch (error) {
-      this.clearTokens();
-      throw error;
+  // 添加認證 token（如果有的話）
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers = {
+      ...config.headers,
+      Authorization: `Bearer ${token}`,
     }
   }
 
-  // Auth endpoints
-  async register(data: { email: string; password: string; name: string }) {
-    const response = await this.axiosInstance.post('/auth/register', data);
-    const { accessToken, refreshToken, user } = response.data;
-    this.setTokens(accessToken, refreshToken);
-    localStorage.setItem('user', JSON.stringify(user));
-    return response.data;
-  }
+  try {
+    const response = await fetch(url, config)
 
-  async login(data: { email: string; password: string }) {
-    const response = await this.axiosInstance.post('/auth/login', data);
-    const { accessToken, refreshToken, user } = response.data;
-    this.setTokens(accessToken, refreshToken);
-    localStorage.setItem('user', JSON.stringify(user));
-    return response.data;
-  }
-
-  async logout() {
-    const refreshToken = this.getRefreshToken();
-    if (refreshToken) {
-      try {
-        await this.axiosInstance.post('/auth/logout', { refreshToken });
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`)
     }
-    this.clearTokens();
-  }
 
+<<<<<<< HEAD
   async forgotPassword(email: string) {
     return this.axiosInstance.post('/auth/forgot-password', { email });
   }
@@ -253,7 +158,114 @@ class ApiService {
   // Generic request method for custom endpoints
   request(config: AxiosRequestConfig) {
     return this.axiosInstance.request(config);
+=======
+    return await response.json()
+  } catch (error) {
+    console.error('API Request failed:', error)
+    throw error
+>>>>>>> de9b241
   }
 }
 
-export default new ApiService();
+// 表單相關 API
+export const formApi = {
+  // 獲取所有表單
+  async getForms(): Promise<Form[]> {
+    return apiRequest('/forms')
+  },
+
+  // 獲取單個表單
+  async getForm(id: string): Promise<Form> {
+    return apiRequest(`/forms/${id}`)
+  },
+
+  // 創建表單
+  async createForm(form: Omit<Form, 'id'>): Promise<Form> {
+    return apiRequest('/forms', {
+      method: 'POST',
+      body: JSON.stringify(form),
+    })
+  },
+
+  // 更新表單
+  async updateForm(id: string, form: Partial<Form>): Promise<Form> {
+    return apiRequest(`/forms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(form),
+    })
+  },
+
+  // 刪除表單
+  async deleteForm(id: string): Promise<void> {
+    return apiRequest(`/forms/${id}`, {
+      method: 'DELETE',
+    })
+  },
+
+  // 提交表單回應
+  async submitResponse(formId: string, responses: Record<string, any>): Promise<any> {
+    return apiRequest(`/forms/${formId}/responses`, {
+      method: 'POST',
+      body: JSON.stringify({ responses }),
+    })
+  },
+
+  // 獲取表單回應
+  async getResponses(formId: string): Promise<any[]> {
+    return apiRequest(`/forms/${formId}/responses`)
+  },
+}
+
+// 認證相關 API
+export const authApi = {
+  // 登入
+  async login(email: string, password: string): Promise<{ token: string; user: any }> {
+    return apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+  },
+
+  // 註冊
+  async register(email: string, password: string, name: string): Promise<{ token: string; user: any }> {
+    return apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    })
+  },
+
+  // 獲取當前用戶
+  async getCurrentUser(): Promise<any> {
+    return apiRequest('/auth/me')
+  },
+}
+
+// 檔案上傳 API
+export const fileApi = {
+  // 上傳檔案
+  async uploadFile(file: File): Promise<{ url: string; filename: string }> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await fetch(`${API_BASE_URL}/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`)
+    }
+
+    return response.json()
+  },
+}
+
+// 導出所有 API
+export const api = {
+  form: formApi,
+  auth: authApi,
+  file: fileApi,
+}
