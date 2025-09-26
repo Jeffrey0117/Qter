@@ -18,8 +18,11 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.53.0",
     "pinia": "^3.0.3",
     "vue": "^3.5.18",
+    "vue-monaco": "^1.2.2",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {

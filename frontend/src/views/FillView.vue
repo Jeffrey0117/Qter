@@ -6,7 +6,7 @@ const router = useRouter()
 const route = useRoute()
 
 // 題目類型定義
-type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'divider'
+type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'date' | 'file' | 'divider'
 
 interface Option {
   id: string
@@ -229,6 +229,27 @@ const handleTextInput = (questionId: string, value: string) => {
     errors.delete(questionId)
   }
 }
+
+// 處理評分
+const handleRatingChange = (questionId: string, rating: number) => {
+  responses.set(questionId, rating.toString())
+  errors.delete(questionId)
+}
+
+// 處理日期輸入
+const handleDateInput = (questionId: string, value: string) => {
+  responses.set(questionId, value)
+  if (value) {
+    errors.delete(questionId)
+  }
+}
+
+// 處理檔案上傳
+const handleFileUpload = (questionId: string, file: File) => {
+  // 這裡先簡化處理，實際上應該上傳到服務器
+  responses.set(questionId, file.name)
+  errors.delete(questionId)
+}
 </script>
 
 <template>
@@ -368,6 +389,63 @@ const handleTextInput = (questionId: string, value: string) => {
                   />
                   <span class="text-gray-700">{{ option.text }}</span>
                 </label>
+              </div>
+
+              <!-- 評分題 -->
+              <div v-else-if="currentQuestion.type === 'rating'" class="space-y-2">
+                <div class="flex gap-2 justify-center">
+                  <button
+                    v-for="i in 5"
+                    :key="i"
+                    @click="handleRatingChange(currentQuestion.id, i)"
+                    class="text-3xl transition-colors"
+                    :class="{
+                      'text-yellow-400': (parseInt(responses.get(currentQuestion.id) || '0') >= i),
+                      'text-gray-300': (parseInt(responses.get(currentQuestion.id) || '0') < i)
+                    }"
+                  >
+                    ⭐
+                  </button>
+                </div>
+                <p v-if="responses.get(currentQuestion.id)" class="text-center text-sm text-gray-600">
+                  您的評分：{{ responses.get(currentQuestion.id) }} 星
+                </p>
+              </div>
+
+              <!-- 日期題 -->
+              <div v-else-if="currentQuestion.type === 'date'" class="space-y-2">
+                <input
+                  :value="responses.get(currentQuestion.id) || ''"
+                  @input="handleDateInput(currentQuestion.id, ($event.target as HTMLInputElement).value)"
+                  type="date"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <!-- 檔案上傳 -->
+              <div v-else-if="currentQuestion.type === 'file'" class="space-y-2">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    :id="`file_${currentQuestion.id}`"
+                    @change="(e) => {
+                      const files = (e.target as HTMLInputElement).files
+                      if (files && files[0]) {
+                        handleFileUpload(currentQuestion.id, files[0])
+                      }
+                    }"
+                    class="hidden"
+                  />
+                  <label :for="`file_${currentQuestion.id}`" class="cursor-pointer">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="text-gray-600 mb-2">
+                      {{ responses.get(currentQuestion.id) ? `已選擇：${responses.get(currentQuestion.id)}` : '點擊上傳檔案' }}
+                    </p>
+                    <p class="text-sm text-gray-500">支援常見檔案格式</p>
+                  </label>
+                </div>
               </div>
 
               <!-- 錯誤訊息 -->
