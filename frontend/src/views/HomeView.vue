@@ -6,6 +6,59 @@ const router = useRouter()
 
 // 範例問卷資料
 const forms = ref([
+  // 精選問卷卡片（首頁以卡片呈現，填寫頁面提供客製化樣式）
+  {
+    id: 'featured-2025',
+    title: '科技趨勢調查 2025',
+    description: '探索生成式 AI、邊緣運算、低程式碼工具等最新趨勢，協助我們了解業界脈動！',
+    responseCount: 342,
+    createdAt: new Date('2025-09-20'),
+    status: 'active',
+    featured: true,
+    // 客製化樣式（僅在填寫頁面使用）
+    theme: {
+      background: 'linear-gradient(135deg, rgba(14,165,233,0.10), rgba(99,102,241,0.12), rgba(147,51,234,0.12))',
+      titleColor: '#0f172a'
+    },
+    questions: [
+      {
+        id: 'name',
+        type: 'text',
+        title: '您的姓名',
+        description: '請留下您的稱呼便於後續聯繫',
+        required: true
+      },
+      {
+        id: 'aiInterest',
+        type: 'radio',
+        title: '您對生成式 AI 的關注程度',
+        required: true,
+        options: [
+          { id: 'high', text: '高度關注' },
+          { id: 'medium', text: '中度關注' },
+          { id: 'low', text: '低度關注' }
+        ]
+      },
+      {
+        id: 'trends',
+        type: 'checkbox',
+        title: '您最感興趣的科技趨勢（可複選）',
+        required: false,
+        options: [
+          { id: 'genai', text: '生成式 AI' },
+          { id: 'edge', text: '邊緣運算' },
+          { id: 'lowcode', text: '低程式碼/無程式碼' },
+          { id: 'security', text: '零信任資安' }
+        ]
+      },
+      {
+        id: 'suggestion',
+        type: 'textarea',
+        title: '其他建議或想法（選填）',
+        required: false
+      }
+    ]
+  },
   {
     id: '1',
     title: '客戶滿意度調查',
@@ -165,6 +218,7 @@ const fillForm = (id: string) => {
   saveFormsToStorage() // 確保資料已儲存
   router.push(`/fill/${id}`)
 }
+
 </script>
 
 <template>
@@ -186,6 +240,7 @@ const fillForm = (id: string) => {
 
     <!-- 主要內容 -->
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- 精選問卷改為卡片展示，詳見下方問卷列表 -->
       <!-- 操作區 -->
       <div class="mb-8">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -218,20 +273,33 @@ const fillForm = (id: string) => {
         <div
           v-for="form in filteredForms"
           :key="form.id"
-          class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-200"
+          :class="[
+            'rounded-lg transition-shadow p-6 border',
+            form.featured
+              ? 'bg-gradient-to-br from-indigo-50 to-fuchsia-50 border-transparent shadow-md hover:shadow-lg ring-1 ring-violet-300'
+              : 'bg-white border-gray-200 shadow-sm hover:shadow-md'
+          ]"
         >
           <!-- 問卷狀態標籤 -->
           <div class="flex justify-between items-start mb-3">
-            <span
-              :class="[
-                'px-2 py-1 text-xs rounded-full',
-                form.status === 'active'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-800'
-              ]"
-            >
-              {{ form.status === 'active' ? '進行中' : '草稿' }}
-            </span>
+            <div class="flex items-center gap-2">
+              <span
+                :class="[
+                  'px-2 py-1 text-xs rounded-full',
+                  form.status === 'active'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                ]"
+              >
+                {{ form.status === 'active' ? '進行中' : '草稿' }}
+              </span>
+              <span
+                v-if="form.featured"
+                class="px-2 py-1 text-xs rounded-full text-white bg-gradient-to-r from-fuchsia-500 to-indigo-500 shadow"
+              >
+                精選
+              </span>
+            </div>
             <button class="text-gray-400 hover:text-gray-600">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />

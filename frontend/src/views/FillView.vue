@@ -28,6 +28,11 @@ interface Form {
   description: string
   questions: Question[]
   displayMode?: 'step-by-step' | 'all-at-once'
+  featured?: boolean
+  theme?: {
+    background?: string
+    titleColor?: string
+  }
 }
 
 interface Response {
@@ -284,7 +289,13 @@ const handleFileUpload = (questionId: string, file: File) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div
+    :class="[
+      'min-h-screen',
+      form?.theme?.background ? '' : 'bg-gradient-to-br from-blue-50 to-indigo-100'
+    ]"
+    :style="form?.theme?.background ? { background: form.theme.background } : undefined"
+  >
     <!-- 成功提交畫面 -->
     <div v-if="isSubmitted" class="min-h-screen flex items-center justify-center p-4">
       <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
@@ -338,7 +349,13 @@ const handleFileUpload = (questionId: string, file: File) => {
         <div class="w-full max-w-2xl">
           <!-- 表單標題（只在第一題顯示） -->
           <div v-if="currentQuestionIndex === 0" class="mb-8 text-center">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ form.title }}</h1>
+            <h1
+              class="text-3xl font-bold mb-2"
+              :style="form?.theme?.titleColor ? { color: form.theme.titleColor } : undefined"
+              :class="form?.theme?.titleColor ? '' : 'text-gray-900'"
+            >
+              {{ form.title }}
+            </h1>
             <p v-if="form.description" class="text-gray-600">{{ form.description }}</p>
           </div>
 
