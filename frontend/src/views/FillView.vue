@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 
 const router = useRouter()
 const route = useRoute()
 
 // 題目類型定義
-type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'date' | 'file' | 'divider'
+type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
 
 interface Option {
   id: string
@@ -20,6 +21,7 @@ interface Question {
   description?: string
   required: boolean
   options?: Option[]
+  className?: string
 }
 
 interface Form {
@@ -73,6 +75,11 @@ onMounted(() => {
     const savedForm = savedForms.find((f: any) => f.id === formId)
     if (savedForm) {
       form.value = savedForm
+
+      // 套用 Markdown 內宣告的樣式與字體（若有）
+      if (typeof savedForm.markdownContent === 'string') {
+        buildAndApplyMarkdown(savedForm.markdownContent, `qter-style-${savedForm.id}`, `form-${savedForm.id}`)
+      }
 
       // 若為全頁模式，導向全頁填答路由
       if (savedForm.displayMode === 'all-at-once') {
@@ -323,7 +330,7 @@ const handleFileUpload = (questionId: string, file: File) => {
     <div v-else-if="form" class="min-h-screen flex flex-col">
       <!-- 頂部進度條 -->
       <div class="bg-white shadow-sm">
-        <div class="max-w-2xl mx-auto px-4 py-4">
+        <div class="max-w-2xl mx-auto px-4 py-4 progress-boost">
           <div class="flex items-center justify-between mb-2">
             <button
               @click="goHome"
@@ -350,17 +357,23 @@ const handleFileUpload = (questionId: string, file: File) => {
           <!-- 表單標題（只在第一題顯示） -->
           <div v-if="currentQuestionIndex === 0" class="mb-8 text-center">
             <h1
-              class="text-3xl font-bold mb-2"
+              class="text-3xl font-bold mb-2 qtitle"
               :style="form?.theme?.titleColor ? { color: form.theme.titleColor } : undefined"
               :class="form?.theme?.titleColor ? '' : 'text-gray-900'"
-            >
-              {{ form.title }}
-            </h1>
-            <p v-if="form.description" class="text-gray-600">{{ form.description }}</p>
+              v-html="sanitizeHTMLFragment(form.title)"
+            />
+            <p v-if="form.description" class="text-gray-600" v-html="sanitizeHTMLFragment(form.description)"></p>
+            <!-- 特色徽章（僅針對精選 2025 問卷展示） -->
+            <div v-if="form?.id === 'featured-2025' || form?.featured" class="qter-badges">
+              <span class="qter-badge">🚀 趨勢</span>
+              <span class="qter-badge">🤖 GenAI</span>
+              <span class="qter-badge">🧩 Low-code</span>
+              <span class="qter-badge">🛡️ Security</span>
+            </div>
           </div>
 
           <!-- 當前題目 -->
-          <div v-if="currentQuestion" class="bg-white rounded-2xl shadow-lg p-8">
+          <div v-if="currentQuestion" class="bg-white rounded-2xl shadow-lg p-8" :class="currentQuestion.className">
             <!-- 分隔線 -->
             <div v-if="currentQuestion.type === 'divider'" class="py-4">
               <hr class="border-t-2 border-gray-300" />
@@ -369,12 +382,10 @@ const handleFileUpload = (questionId: string, file: File) => {
             <!-- 一般題目 -->
             <div v-else>
               <h2 class="text-xl font-semibold text-gray-900 mb-2">
-                {{ currentQuestion.title }}
+                <span v-html="sanitizeHTMLFragment(currentQuestion.title)"></span>
                 <span v-if="currentQuestion.required" class="text-red-500 ml-1">*</span>
               </h2>
-              <p v-if="currentQuestion.description" class="text-gray-600 mb-6">
-                {{ currentQuestion.description }}
-              </p>
+              <p v-if="currentQuestion.description" class="text-gray-600 mb-6" v-html="sanitizeHTMLFragment(currentQuestion.description)"></p>
 
               <!-- 單行文字 -->
               <div v-if="currentQuestion.type === 'text'" class="space-y-2">
@@ -469,6 +480,24 @@ const handleFileUpload = (questionId: string, file: File) => {
                   @input="handleDateInput(currentQuestion.id, ($event.target as HTMLInputElement).value)"
                   type="date"
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <!-- 滑動條題 -->
+              <div v-else-if="currentQuestion.type === 'range'" class="space-y-2">
+                <div class="flex items-center justify-between text-sm text-gray-600">
+                  <span>0</span>
+                  <span>{{ responses.get(currentQuestion.id) || 50 }}</span>
+                  <span>100</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :value="(responses.get(currentQuestion.id) as string) || '50'"
+                  @input="handleTextInput(currentQuestion.id, ($event.target as HTMLInputElement).value)"
+                  class="w-full accent-blue-500"
                 />
               </div>
 

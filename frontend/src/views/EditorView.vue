@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 
 // 題目類型定義
-type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'divider'
+type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
 
 interface Option {
   id: string
@@ -17,6 +18,7 @@ interface Question {
   description?: string
   required: boolean
   options?: Option[]
+  className?: string
 }
 
 interface Form {
@@ -44,11 +46,18 @@ const form = reactive<Form>({
   displayMode: 'all-at-once'
 })
 
-// Markdown 內容
+ // Markdown 內容（示範含 style、Google Fonts、自訂卡片樣式與 HTML 標題）
 const markdownContent = ref(`---
-title: 2025 數位生活型態調查 🔮
-description: 「你的每一次滑動，都在定義明天的數位生活。」💫 請花 3 分鐘完成，讓我們用數據打造更貼近你的數位體驗！
+title: <span class="custom-title">客製化問卷標題</span>
+description: 使用自訂字體、顏色與卡片樣式的進階示範
 ---
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+  .custom-title { font-family: 'Noto Sans TC'; font-size: 2.2rem; color: #6B46C1; }
+  .card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 16px; padding: 8px; }
+  .note { color: #FF6B6B; font-size: 1.1rem; }
+</style>
 
 ## 🎯 基本資訊
 
@@ -59,7 +68,7 @@ placeholder: 請輸入暱稱或稱呼（將用於統計顯示）
 
 ---
 
-### 您目前的年齡範圍是？
+### 您目前的年齡範圍是？ {.card}
 type: radio
 required: true
 options:
@@ -179,7 +188,7 @@ options:
 ### 如果可許願，你希望 2025 的「數位生活」更多什麼？
 type: textarea
 required: false
-placeholder: 舉例：更智慧的提醒、更懂我的推薦、更安全的登入體驗…
+placeholder: <span class="note">舉例：更智慧的提醒、更懂我的推薦、更安全的登入體驗…</span>
 
 ---
 
@@ -194,27 +203,29 @@ const editingQuestionId = ref<string | null>(null)
 const isDragging = ref(false)
 const draggedQuestion = ref<Question | null>(null)
 
-// 從 Markdown 解析表單
-const parseMarkdownToForm = (markdown: string): Form => {
-  const lines = markdown.split('\n')
-  let currentForm: Partial<Form> = {
-    title: '未命名問卷',
-    description: '',
-    questions: []
-  }
+  // 從 Markdown 解析表單
+ const parseMarkdownToForm = (markdown: string): Form => {
+   // 先移除 <style>...</style> 區塊，避免干擾題目解析
+   const mdNoStyle = markdown.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+   const lines = mdNoStyle.split('\n')
+   let currentForm: Partial<Form> = {
+     title: '未命名問卷',
+     description: '',
+     questions: []
+   }
   let currentQuestion: Partial<Question> | null = null
   let inFrontMatter = false
   let frontMatterContent = ''
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
-    
+
     // Front matter
     if (line === '---' && !inFrontMatter) {
       inFrontMatter = true
       continue
     }
-    
+
     if (line === '---' && inFrontMatter) {
       inFrontMatter = false
       // Parse front matter (simplified)
@@ -227,12 +238,12 @@ const parseMarkdownToForm = (markdown: string): Form => {
       })
       continue
     }
-    
+
     if (inFrontMatter) {
       frontMatterContent += line + '\n'
       continue
     }
-    
+
     // Question separator
     if (line === '---') {
       if (currentQuestion) {
@@ -241,15 +252,21 @@ const parseMarkdownToForm = (markdown: string): Form => {
       currentQuestion = null
       continue
     }
-    
-    // Question title (starts with ###)
+
+    // Question title (starts with ###) + 可選 class 標記：### 標題 {.class1 class2}
     if (line.startsWith('### ')) {
       if (currentQuestion) {
         currentForm.questions!.push(currentQuestion as Question)
       }
+      // 萃取可選的 {.class}
+      const m = /^###\s+(.*?)(?:\s+\{\.([A-Za-z0-9\-\s_]+)\})?$/.exec(line)
+      const title = m ? m[1] : line.substring(4)
+      const className = m && m[2] ? m[2].trim() : undefined
+
       currentQuestion = {
         id: `q_${Date.now()}_${Math.random()}`,
-        title: line.substring(4),
+        title,
+        className,
         type: 'text',
         required: false
       }
@@ -297,7 +314,7 @@ const parseMarkdownToForm = (markdown: string): Form => {
   return currentForm as Form
 }
 
-// 從表單生成 Markdown
+ // 從表單生成 Markdown
 const generateMarkdownFromForm = (form: Form): string => {
   let markdown = `---
 title: ${form.title}
@@ -305,28 +322,29 @@ description: ${form.description}
 ---
 
 `
-  
+
   form.questions.forEach((question, index) => {
-    markdown += `### ${question.title}\n`
+    const cls = question.className ? ` {.${question.className}}` : ''
+    markdown += `### ${question.title}${cls}\n`
     markdown += `type: ${question.type}\n`
     markdown += `required: ${question.required}\n`
-    
+
     if (question.description) {
       markdown += `placeholder: "${question.description}"\n`
     }
-    
+
     if (question.options && question.options.length > 0) {
       markdown += `options:\n`
       question.options.forEach(option => {
         markdown += `  - "${option.text}"\n`
       })
     }
-    
+
     if (index < form.questions.length - 1) {
       markdown += `---\n\n`
     }
   })
-  
+
   return markdown
 }
 
@@ -500,8 +518,11 @@ const saveForm = () => {
 
   const toSave = {
     ...form,
-    // 總是一起儲存對應的 Markdown 序列化內容，方便雙向同步與回溯
-    markdownContent: generateMarkdownFromForm(form)
+    // 於 Markdown 模式：保留使用者原始 Markdown（含 <style> 與 @import）
+    // 於視覺模式：以目前表單資料序列化
+    markdownContent: editorMode.value === 'markdown'
+      ? markdownContent.value
+      : generateMarkdownFromForm(form)
   }
 
   if (existingIndex !== -1) {
@@ -561,7 +582,8 @@ const resetToDefaultSurvey = () => {
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
   const toSave = {
     ...form,
-    markdownContent: generateMarkdownFromForm(form),
+    // 重置為預設問卷時，保留目前 markdownContent（內建示範含 <style>）
+    markdownContent: markdownContent.value,
   }
   if (existingIndex !== -1) {
     savedForms[existingIndex] = toSave
@@ -597,8 +619,14 @@ const goBack = () => {
   router.push('/')
 }
 
-// 載入表單資料
+ // 載入表單資料
 onMounted(() => {
+  // 預覽樣式：載入與後續監看
+  buildAndApplyMarkdown(markdownContent.value, 'qter-style-editor-preview', 'editor-preview')
+  watch(markdownContent, (v) => {
+    buildAndApplyMarkdown(v, 'qter-style-editor-preview', 'editor-preview')
+  }, { immediate: false })
+
   // 支援以網址參數 ?reset=1 或 ?force=1 強制載入預設問卷並清除本地快取
   const shouldReset =
     (route.query && (route.query as any).reset === '1') ||
@@ -639,6 +667,10 @@ const getQuestionIcon = (type: QuestionType) => {
     case 'textarea': return '📄'
     case 'radio': return '⭕'
     case 'checkbox': return '☑️'
+    case 'rating': return '⭐'
+    case 'range': return '🎚️'
+    case 'date': return '📅'
+    case 'file': return '📎'
     case 'divider': return '➖'
     default: return '❓'
   }
@@ -650,6 +682,10 @@ const getQuestionTypeName = (type: QuestionType) => {
     case 'textarea': return '多行文字'
     case 'radio': return '單選題'
     case 'checkbox': return '多選題'
+    case 'rating': return '星等評分'
+    case 'range': return '滑動條'
+    case 'date': return '日期'
+    case 'file': return '檔案上傳'
     case 'divider': return '分隔線'
     default: return '未知'
   }
@@ -749,10 +785,15 @@ const getQuestionTypeName = (type: QuestionType) => {
           </div>
           <div class="p-4">
             <div class="space-y-4 max-h-96 overflow-y-auto">
-              <div v-for="question in parseMarkdownToForm(markdownContent).questions" :key="question.id" class="border border-gray-200 rounded-lg p-4">
+              <div
+                v-for="question in parseMarkdownToForm(markdownContent).questions"
+                :key="question.id"
+                class="border border-gray-200 rounded-lg p-4"
+                :class="question.className"
+              >
                 <div class="flex items-center gap-2 mb-2">
                   <span>{{ getQuestionIcon(question.type) }}</span>
-                  <span class="font-medium">{{ question.title }}</span>
+                  <span class="font-medium" v-html="sanitizeHTMLFragment(question.title)"></span>
                   <span v-if="question.required" class="text-red-500">*</span>
                 </div>
                 <div v-if="question.options" class="ml-6 space-y-1">

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 
 // 題目類型定義（與 FillView.vue 對齊）
-type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'date' | 'file' | 'divider'
+type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
 
 interface Option {
   id: string
@@ -17,6 +18,7 @@ interface Question {
   description?: string
   required: boolean
   options?: Option[]
+  className?: string
 }
 
 interface Form {
@@ -74,6 +76,11 @@ onMounted(() => {
     const savedForm = savedForms.find((f: any) => f.id === formId)
     if (savedForm) {
       form.value = savedForm
+
+      // 套用 Markdown 內宣告的樣式與字體（若有）
+      if (typeof savedForm.markdownContent === 'string') {
+        buildAndApplyMarkdown(savedForm.markdownContent, `qter-style-${savedForm.id}`, `form-${savedForm.id}`)
+      }
 
       // 載入暫存
       const savedResponses = localStorage.getItem(`qter_response_${savedForm.id}`)
@@ -249,8 +256,8 @@ const setQuestionRef = (qid: string) => (el: HTMLElement | null) => {
       <main class="flex-1 p-4">
         <div class="w-full max-w-4xl mx-auto">
           <div class="mb-6 text-center">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ form.title }}</h1>
-            <p v-if="form.description" class="text-gray-600">{{ form.description }}</p>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2" v-html="sanitizeHTMLFragment(form.title)"></h1>
+            <p v-if="form.description" class="text-gray-600" v-html="sanitizeHTMLFragment(form.description)"></p>
           </div>
 
           <div class="space-y-6">
@@ -259,13 +266,14 @@ const setQuestionRef = (qid: string) => (el: HTMLElement | null) => {
               :key="q.id"
               v-show="q.type !== 'divider'"
               class="bg-white rounded-2xl shadow-lg p-6"
+              :class="q.className"
               :ref="setQuestionRef(q.id)"
             >
               <h2 class="text-lg font-semibold text-gray-900 mb-2">
-                {{ q.title }}
+                <span v-html="sanitizeHTMLFragment(q.title)"></span>
                 <span v-if="q.required" class="text-red-500 ml-1">*</span>
               </h2>
-              <p v-if="q.description" class="text-gray-600 mb-4">{{ q.description }}</p>
+              <p v-if="q.description" class="text-gray-600 mb-4" v-html="sanitizeHTMLFragment(q.description)"></p>
 
               <!-- 單行文字 -->
               <div v-if="q.type === 'text'" class="space-y-2">
@@ -354,6 +362,24 @@ const setQuestionRef = (qid: string) => (el: HTMLElement | null) => {
                   @input="handleDateInput(q.id, ($event.target as HTMLInputElement).value)"
                   type="date"
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <!-- 滑動條 -->
+              <div v-else-if="q.type === 'range'" class="space-y-2">
+                <div class="flex items-center justify-between text-sm text-gray-600">
+                  <span>0</span>
+                  <span>{{ responses.get(q.id) || 50 }}</span>
+                  <span>100</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :value="(responses.get(q.id) as string) || '50'"
+                  @input="handleTextInput(q.id, ($event.target as HTMLInputElement).value)"
+                  class="w-full accent-blue-500"
                 />
               </div>
 

@@ -15,47 +15,218 @@ const forms = ref([
     createdAt: new Date('2025-09-20'),
     status: 'active',
     featured: true,
+    // 進階 Markdown 與自訂樣式（只在填寫頁面使用）
+    markdownContent: `
+<style>
+  /* 字體 */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
+  /* 全域字型 */
+  body { font-family: Inter, system-ui, -apple-system, sans-serif; }
+
+  /* 超大標題 */
+  .qtitle {
+    font-family: 'Space Grotesk', Inter, sans-serif;
+    letter-spacing: .3px;
+    color: #0f172a;
+    font-size: 4.5rem;
+    line-height: 1.05;
+    text-shadow: 0 6px 30px rgba(99,102,241,.25);
+  }
+
+  /* 徽章 */
+  .qter-badges { display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .qter-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:6px 10px; border-radius:9999px;
+    background: linear-gradient(90deg, rgba(236,72,153,.15), rgba(59,130,246,.15));
+    color:#334155; border:1px solid rgba(99,102,241,.35);
+  }
+
+  /* 進度條微客製 */
+  .progress-boost .bg-blue-500 { box-shadow: 0 0 0 2px rgba(191,219,254,1) inset; }
+
+  /* 題目卡片主題 */
+  .qcard-ai { background: linear-gradient(180deg, #f0f9ff, #eef2ff); border: 1px solid rgba(99,102,241,.35); box-shadow: 0 8px 24px rgba(99,102,241,.25); }
+  .qcard-ai:hover { box-shadow: 0 12px 28px rgba(99,102,241,.35); }
+  .qcard-edge { background: linear-gradient(180deg, #f0fdf4, #ecfdf5); border: 1px solid rgba(16,185,129,.35); box-shadow: 0 8px 24px rgba(16,185,129,.20); }
+  .qcard-edge:hover { box-shadow: 0 12px 28px rgba(16,185,129,.30); }
+  .qcard-lowcode { background: linear-gradient(180deg, #fef2f2, #fff7ed); border: 1px solid rgba(249,115,22,.35); box-shadow: 0 8px 24px rgba(249,115,22,.25); }
+  .qcard-lowcode:hover { box-shadow: 0 12px 28px rgba(249,115,22,.35); }
+  .qcard-security { background: linear-gradient(180deg, #f3f4f6, #f8fafc); border: 1px solid rgba(15,23,42,.25); box-shadow: 0 8px 24px rgba(15,23,42,.20); }
+  .qcard-security:hover { box-shadow: 0 12px 28px rgba(15,23,42,.30); }
+
+  /* 色塊選擇用標籤 */
+  .color-label { display:inline-flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.06); }
+  .color-dot { width:18px; height:18px; border-radius:50%; box-shadow:0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,.08) }
+
+  /* 動畫 */
+  .animate-fade { animation: fadein .6s ease-out both; }
+  .animate-slide { animation: slideup .6s ease-out both; }
+  @keyframes fadein { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:none } }
+  @keyframes slideup { from { opacity:0; transform: translateY(18px) } to { opacity:1; transform:none } }
+
+  /* 卡片翻轉 */
+  .flip-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin:14px 0; }
+  .flip-card { perspective: 1000px; }
+  .flip-inner { position:relative; transform-style:preserve-3d; transition: transform .6s; }
+  .flip-card:hover .flip-inner { transform: rotateY(180deg); }
+  .flip-face { position:relative; backface-visibility:hidden; border-radius:16px; padding:16px; border:1px solid rgba(99,102,241,.3); background: linear-gradient(180deg,#eef2ff,#faf5ff) }
+  .flip-back { position:absolute; inset:0; transform: rotateY(180deg); background: linear-gradient(180deg,#ecfeff,#f0f9ff) }
+
+  /* 小徽章（內文） */
+  .qtag { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; background: rgba(59,130,246,.08); color:#1d4ed8; border:1px solid rgba(59,130,246,.25); }
+</style>
+
+<section class="animate-fade" style="text-align:center;margin: 10px 0 16px 0;">
+  <div style="font-size:14px;color:#64748b;letter-spacing:.1em;">2025 TECH OUTLOOK</div>
+  <div class="qtitle">🚀 科技趨勢調查 2025</div>
+  <div class="qter-badges">
+    <span class="qter-badge">🤖 GenAI</span>
+    <span class="qter-badge">🛰️ Edge</span>
+    <span class="qter-badge">🧩 Low-code</span>
+    <span class="qter-badge">🛡️ Security</span>
+  </div>
+
+  <div style="margin-top:10px;color:#475569">
+    <span class="qtag">全新互動體驗 ✨</span>
+    <span class="qtag">客製化視覺 🎨</span>
+    <span class="qtag">更直覺的題型 🧠</span>
+  </div>
+
+  <!-- 卡片翻轉展示 -->
+  <div class="flip-grid animate-slide" aria-label="趨勢卡片展示">
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-face">🤖 生成式 AI<br/><small>內容生產、協作開發</small></div>
+        <div class="flip-face flip-back">✨ Prompt 工程、RAG、Agent</div>
+      </div>
+    </div>
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-face">🛰️ 邊緣運算<br/><small>低延遲、隱私優化</small></div>
+        <div class="flip-face flip-back">📶 5G/IoT + on-device AI</div>
+      </div>
+    </div>
+    <div class="flip-card">
+      <div class="flip-inner">
+        <div class="flip-face">🧩 低程式碼<br/><small>業務敏捷、快速落地</small></div>
+        <div class="flip-face flip-back">⚡ 表單/流程/報表自動化</div>
+      </div>
+    </div>
+  </div>
+</section>
+`,
     // 客製化樣式（僅在填寫頁面使用）
     theme: {
-      background: 'linear-gradient(135deg, rgba(14,165,233,0.10), rgba(99,102,241,0.12), rgba(147,51,234,0.12))',
+      background: "linear-gradient(135deg, rgba(14,165,233,.35), rgba(99,102,241,.35)) , url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1600&auto=format&fit=crop') center / cover no-repeat fixed",
       titleColor: '#0f172a'
     },
     questions: [
       {
         id: 'name',
         type: 'text',
-        title: '您的姓名',
-        description: '請留下您的稱呼便於後續聯繫',
-        required: true
+        title: '👤 請留下您的稱呼',
+        description: '方便我們在必要時與您聯繫',
+        required: true,
+        className: 'qcard-ai animate-fade'
       },
       {
         id: 'aiInterest',
         type: 'radio',
-        title: '您對生成式 AI 的關注程度',
+        title: '🤖 對生成式 AI 的關注程度',
         required: true,
+        className: 'qcard-edge animate-fade',
         options: [
-          { id: 'high', text: '高度關注' },
-          { id: 'medium', text: '中度關注' },
-          { id: 'low', text: '低度關注' }
+          { id: 'high', text: '🔥 高度關注' },
+          { id: 'medium', text: '⚖️ 中度關注' },
+          { id: 'low', text: '🌱 低度關注' }
         ]
       },
       {
         id: 'trends',
         type: 'checkbox',
-        title: '您最感興趣的科技趨勢（可複選）',
+        title: '📈 最感興趣的科技趨勢（可複選）',
         required: false,
+        className: 'qcard-lowcode animate-fade',
         options: [
-          { id: 'genai', text: '生成式 AI' },
-          { id: 'edge', text: '邊緣運算' },
-          { id: 'lowcode', text: '低程式碼/無程式碼' },
-          { id: 'security', text: '零信任資安' }
+          { id: 'genai', text: '🤖 生成式 AI' },
+          { id: 'edge', text: '🛰️ 邊緣運算' },
+          { id: 'lowcode', text: '🧩 低程式碼/無程式碼' },
+          { id: 'security', text: '🛡️ 零信任資安' }
         ]
       },
+
+      /* 圖片型題目（在題目中嵌入圖片） */
+      {
+        id: 'vision-image',
+        type: 'text',
+        title: '🖼️ 請觀察下圖並描述你最關注的科技應用<br/><img src="https://images.unsplash.com/photo-1518779578993-ec3579fee39f?q=80&w=1200&auto=format&fit=crop" alt="AI Art" style="width:100%;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);margin-top:8px;" />',
+        description: '可舉例：內容生成、智慧客服、資料分析、個人助理等',
+        required: false,
+        className: 'qcard-ai animate-slide'
+      },
+
+      /* 星星評分（emoji） */
+      {
+        id: 'aiStar',
+        type: 'rating',
+        title: '🌟 你對「AI 生產力工具」的滿意度',
+        description: '請以 1~5 顆星評分',
+        required: true,
+        className: 'qcard-edge animate-fade'
+      },
+
+      /* 顏色選擇（色塊） */
+      {
+        id: 'colorChoice',
+        type: 'radio',
+        title: '🎨 你偏好的介面主題色調',
+        description: '以下選項以顏色呈現（純裝飾，實際以 emoji 文字為值）',
+        required: false,
+        className: 'qcard-lowcode animate-fade',
+        options: [
+          { id: 'red', text: '🔴 紅' },
+          { id: 'green', text: '🟢 綠' },
+          { id: 'blue', text: '🔵 藍' },
+          { id: 'yellow', text: '🟡 黃' },
+          { id: 'purple', text: '🟣 紫' }
+        ]
+      },
+
+      /* 圖標選擇（emoji） */
+      {
+        id: 'iconChoice',
+        type: 'radio',
+        title: '🧩 為你的 2025 科技形象選一個代表圖標',
+        required: false,
+        className: 'qcard-ai animate-fade',
+        options: [
+          { id: 'robot', text: '🤖' },
+          { id: 'cloud', text: '☁️' },
+          { id: 'brain', text: '🧠' },
+          { id: 'satellite', text: '🛰️' },
+          { id: 'shield', text: '🛡️' }
+        ]
+      },
+
+      /* 滑動條（range） */
+      {
+        id: 'adoptionRange',
+        type: 'range',
+        title: '📊 你所在團隊對新技術的採用程度（0~100）',
+        description: '向右表示更積極採用',
+        required: false,
+        className: 'qcard-security animate-fade'
+      },
+
+      /* 其他建議 */
       {
         id: 'suggestion',
         type: 'textarea',
-        title: '其他建議或想法（選填）',
-        required: false
+        title: '💡 其他建議或想法（選填）',
+        required: false,
+        className: 'qcard-security animate-slide'
       }
     ]
   },
@@ -207,6 +378,8 @@ onMounted(() => {
 })
 
 const openForm = (id: string) => {
+  // 確保列表資料已寫入 localStorage，編輯器才能正確載入
+  saveFormsToStorage()
   router.push(`/editor/${id}`)
 }
 
