@@ -27,6 +27,7 @@ interface Form {
   title: string
   description: string
   questions: Question[]
+  displayMode?: 'step-by-step' | 'all-at-once'
 }
 
 interface Response {
@@ -67,6 +68,13 @@ onMounted(() => {
     const savedForm = savedForms.find((f: any) => f.id === formId)
     if (savedForm) {
       form.value = savedForm
+
+      // 若為全頁模式，導向全頁填答路由
+      if (savedForm.displayMode === 'all-at-once') {
+        router.replace(`/fill/${savedForm.id}/all`)
+        return
+      }
+
       // 載入暫存的答案
       const savedResponses = localStorage.getItem(`qter_response_${formId}`)
       if (savedResponses) {
@@ -209,6 +217,10 @@ const goHome = () => {
 const handleRadioChange = (questionId: string, optionId: string) => {
   responses.set(questionId, optionId)
   errors.delete(questionId)
+  // 單選題選擇後自動跳下一題
+  setTimeout(() => {
+    nextQuestion()
+  }, 300)
 }
 
 // 處理多選題
@@ -230,10 +242,29 @@ const handleTextInput = (questionId: string, value: string) => {
   }
 }
 
+// 處理 Enter 鍵事件
+const handleKeyPress = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    // 對於 textarea，Shift+Enter 換行，Enter 下一題
+    if (currentQuestion.value?.type === 'textarea') {
+      event.preventDefault()
+      nextQuestion()
+    } else if (currentQuestion.value?.type === 'text') {
+      // 對於 text 輸入框，Enter 直接下一題
+      event.preventDefault()
+      nextQuestion()
+    }
+  }
+}
+
 // 處理評分
 const handleRatingChange = (questionId: string, rating: number) => {
   responses.set(questionId, rating.toString())
   errors.delete(questionId)
+  // 評分題選擇後自動跳下一題
+  setTimeout(() => {
+    nextQuestion()
+  }, 300)
 }
 
 // 處理日期輸入
@@ -333,9 +364,10 @@ const handleFileUpload = (questionId: string, file: File) => {
                 <input
                   :value="responses.get(currentQuestion.id) || ''"
                   @input="handleTextInput(currentQuestion.id, ($event.target as HTMLInputElement).value)"
+                  @keypress="handleKeyPress"
                   type="text"
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="您的答案"
+                  placeholder="您的答案（按 Enter 下一題）"
                 />
               </div>
 
@@ -344,9 +376,10 @@ const handleFileUpload = (questionId: string, file: File) => {
                 <textarea
                   :value="responses.get(currentQuestion.id) || ''"
                   @input="handleTextInput(currentQuestion.id, ($event.target as HTMLTextAreaElement).value)"
+                  @keypress="handleKeyPress"
                   rows="4"
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder="您的答案"
+                  placeholder="您的答案（Shift+Enter 換行，Enter 下一題）"
                 />
               </div>
 

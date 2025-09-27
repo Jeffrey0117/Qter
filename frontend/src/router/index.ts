@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import EditorView from '../views/EditorView.vue'
 import FillView from '../views/FillView.vue'
 import ResponsesView from '../views/ResponsesView.vue'
+import AllAtOnceView from '../views/AllAtOnceView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,6 +22,11 @@ const router = createRouter({
       path: '/fill/:id',
       name: 'fill',
       component: FillView
+    },
+    {
+      path: '/fill/:id/all',
+      name: 'fill-all',
+      component: AllAtOnceView
     },
     {
       path: '/responses/:id',

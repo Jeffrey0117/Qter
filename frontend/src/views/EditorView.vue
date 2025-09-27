@@ -24,6 +24,7 @@ interface Form {
   title: string
   description: string
   questions: Question[]
+  displayMode?: 'step-by-step' | 'all-at-once'
 }
 
 // 編輯器模式
@@ -39,51 +40,153 @@ const form = reactive<Form>({
   id: route.params.id as string || 'new',
   title: '未命名問卷',
   description: '',
-  questions: []
+  questions: [],
+  displayMode: 'all-at-once'
 })
 
 // Markdown 內容
 const markdownContent = ref(`---
-title: 客戶滿意度調查
-description: 請花幾分鐘時間填寫這份問卷，您的意見對我們很重要
+title: 2025 數位生活型態調查 🔮
+description: 「你的每一次滑動，都在定義明天的數位生活。」💫 請花 3 分鐘完成，讓我們用數據打造更貼近你的數位體驗！
 ---
 
-## 基本資訊
+## 🎯 基本資訊
 
-### 您的姓名是？
+### 您的稱呼是？
 type: text
 required: true
-placeholder: 請輸入您的姓名
+placeholder: 請輸入暱稱或稱呼（將用於統計顯示）
 
 ---
 
-### 您的年齡範圍？
+### 您目前的年齡範圍是？
 type: radio
 required: true
 options:
-  - 18-25
-  - 26-35
-  - 36-45
-  - 46+
+  - 18-24 🌱
+  - 25-34 🚀
+  - 35-44 💼
+  - 45-54 🧭
+  - 55+ 🌟
 
 ---
 
-## 滿意度評分
+## 📱 使用行為
 
-### 您對我們服務的整體滿意度如何？
-type: textarea
+### 平均每日使用智慧型手機的時間
+type: radio
+required: true
+options:
+  - ⏱️ 0-2 小時
+  - ⏱️ 2-4 小時
+  - ⏱️ 4-6 小時
+  - ⏱️ 6-8 小時
+  - ⏱️ 8 小時以上
+
+---
+
+### 你最常使用的社群/內容平台（可複選）
+type: checkbox
+required: true
+options:
+  - YouTube ▶️
+  - Instagram 🟣
+  - TikTok 🎵
+  - Facebook 🔵
+  - X（Twitter）⚫
+  - Threads 🧵
+  - Reddit 👽
+  - Dcard 💬
+
+---
+
+## 🌟 體驗與偏好
+
+### 對「行動支付」的整體滿意度（星級）
+type: radio
+required: true
+options:
+  - ⭐
+  - ⭐⭐
+  - ⭐⭐⭐
+  - ⭐⭐⭐⭐
+  - ⭐⭐⭐⭐⭐
+
+---
+
+### 你偏好的工作/學習模式
+type: radio
+required: true
+options:
+  - 完全遠距 🌐
+  - 混合（部分遠距）⚖️
+  - 完全實體 🏢
+
+---
+
+### 一週內遠距（或線上）工作的頻率
+type: radio
 required: false
-placeholder: 請分享您的看法
+options:
+  - 幾乎沒有
+  - 1-2 天
+  - 3-4 天
+  - 幾乎每天
 
 ---
 
-### 您願意推薦我們給朋友嗎？
+### 你最關注的資安議題（可複選）
 type: checkbox
 required: false
 options:
-  - 是的，絕對會
-  - 可能會
-  - 不會
+  - 隱私外洩 🛡️
+  - 釣魚詐騙 🎣
+  - 帳號被盜 🔐
+  - 裝置惡意軟體 🦠
+  - 公開 Wi-Fi 安全性 📶
+
+---
+
+## 🤖 AI 使用
+
+### 你最常在哪些情境使用 AI（可複選）
+type: checkbox
+required: false
+options:
+  - 撰寫/修飾文字 ✍️
+  - 寫程式/除錯 🧑‍💻
+  - 圖片/設計 🎨
+  - 學習/查資料 📚
+  - 規劃/決策 🧠
+  - 幾乎不使用 🙅
+
+---
+
+### 對通知的容忍度（1=少打擾，5=多提醒）
+type: radio
+required: true
+options:
+  - 🔔 1
+  - 🔔 2
+  - 🔔 3
+  - 🔔 4
+  - 🔔 5
+
+---
+
+## 💡 想法與回饋
+
+### 如果可許願，你希望 2025 的「數位生活」更多什麼？
+type: textarea
+required: false
+placeholder: 舉例：更智慧的提醒、更懂我的推薦、更安全的登入體驗…
+
+---
+
+### 聯絡信箱（選填，用於抽獎與結果通知）
+type: text
+required: false
+placeholder: 填寫 email（我們將妥善保護你的資料）
 `)
 
 // 編輯狀態
@@ -379,29 +482,114 @@ const handleDragEnd = () => {
 
 // 儲存表單
 const saveForm = () => {
+  // 若在 Markdown 模式，先解析 Markdown 並同步至視覺資料，確保儲存與預覽一致
+  if (editorMode.value === 'markdown') {
+    const parsed = parseMarkdownToForm(markdownContent.value)
+    // 保留 id 與 displayMode
+    parsed.id = form.id
+    parsed.displayMode = form.displayMode
+    // 同步到視覺模型
+    form.title = parsed.title
+    form.description = parsed.description
+    form.questions = parsed.questions
+  }
+
   // 儲存到 localStorage
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
-  
-  if (existingIndex !== -1) {
-    savedForms[existingIndex] = {
-      ...form,
-      markdownContent: editorMode.value === 'markdown' ? markdownContent.value : generateMarkdownFromForm(form)
-    }
-  } else {
-    savedForms.push({
-      ...form,
-      markdownContent: editorMode.value === 'markdown' ? markdownContent.value : generateMarkdownFromForm(form)
-    })
+
+  const toSave = {
+    ...form,
+    // 總是一起儲存對應的 Markdown 序列化內容，方便雙向同步與回溯
+    markdownContent: generateMarkdownFromForm(form)
   }
-  
+
+  if (existingIndex !== -1) {
+    savedForms[existingIndex] = toSave
+  } else {
+    savedForms.push(toSave)
+  }
+
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
   alert('問卷已儲存！')
 }
 
+/**
+ * 重置本地快取並載入預設「2025 數位生活型態調查」
+ * - 清除 qter_forms 中當前表單
+ * - 清除暫存作答與回應
+ * - 以內建 Markdown 重新解析載入（全頁模式）
+ */
+const resetLocalCacheForCurrentForm = () => {
+  const currentId = (route.params.id as string) || form.id
+  // 清除問卷列表中的同 id
+  const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+  const filtered = savedForms.filter((f: any) => f.id !== currentId)
+  localStorage.setItem('qter_forms', JSON.stringify(filtered))
+  // 清除暫存作答
+  localStorage.removeItem(`qter_response_${currentId}`)
+  // 清除已提交回應中的此表單
+  const allResponses = JSON.parse(localStorage.getItem('qter_all_responses') || '{}')
+  if (allResponses[currentId]) {
+    delete allResponses[currentId]
+    localStorage.setItem('qter_all_responses', JSON.stringify(allResponses))
+  }
+}
+
+const resetToDefaultSurvey = () => {
+  resetLocalCacheForCurrentForm()
+
+  // 若當前是 /editor/new 或無 id，指定一個穩定 id，避免預覽時找不到表單
+  const stableId = 'digital-2025'
+  if (!route.params.id || (route.params.id as string) === 'new') {
+    form.id = stableId
+    // 立即更新網址，避免後續預覽/填寫讀不到
+    router.replace(`/editor/${stableId}`)
+  }
+
+  // 由內建 Markdown 載入，並強制為全頁模式
+  const parsed = parseMarkdownToForm(markdownContent.value)
+  parsed.id = form.id
+  parsed.displayMode = 'all-at-once'
+  form.title = parsed.title
+  form.description = parsed.description
+  form.questions = parsed.questions
+  form.displayMode = 'all-at-once'
+
+  // 立即持久化到 localStorage，確保 FillView/AllAtOnceView 能讀到
+  const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+  const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
+  const toSave = {
+    ...form,
+    markdownContent: generateMarkdownFromForm(form),
+  }
+  if (existingIndex !== -1) {
+    savedForms[existingIndex] = toSave
+  } else {
+    savedForms.push(toSave)
+  }
+  localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+
+  alert('已重置並寫入預設的「2025 數位生活型態調查」，且設定為全頁模式。您可以直接點「預覽」。')
+}
+
 // 預覽表單
 const previewForm = () => {
-  router.push(`/fill/${form.id}`)
+  // 預覽前確保資料同步（特別是 Markdown 模式）
+  if (editorMode.value === 'markdown') {
+    const parsed = parseMarkdownToForm(markdownContent.value)
+    parsed.id = form.id
+    parsed.displayMode = form.displayMode
+    form.title = parsed.title
+    form.description = parsed.description
+    form.questions = parsed.questions
+  }
+
+  if ((form.displayMode ?? 'step-by-step') === 'all-at-once') {
+    router.push(`/fill/${form.id}/all`)
+  } else {
+    router.push(`/fill/${form.id}`)
+  }
 }
 
 // 返回首頁
@@ -411,14 +599,33 @@ const goBack = () => {
 
 // 載入表單資料
 onMounted(() => {
+  // 支援以網址參數 ?reset=1 或 ?force=1 強制載入預設問卷並清除本地快取
+  const shouldReset =
+    (route.query && (route.query as any).reset === '1') ||
+    (route.query && (route.query as any).force === '1')
+
+  if (shouldReset) {
+    resetToDefaultSurvey()
+    return
+  }
+
   if (route.params.id && route.params.id !== 'new') {
     const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
     const savedForm = savedForms.find((f: any) => f.id === route.params.id)
     if (savedForm) {
       Object.assign(form, savedForm)
-      if (savedForm.markdownContent) {
+
+      if (savedForm.markdownContent && typeof savedForm.markdownContent === 'string') {
         markdownContent.value = savedForm.markdownContent
+        // 以 markdownContent 作為真實來源解析，同步到視覺資料
+        const parsed = parseMarkdownToForm(markdownContent.value)
+        parsed.id = form.id
+        parsed.displayMode = form.displayMode
+        form.title = parsed.title
+        form.description = parsed.description
+        form.questions = parsed.questions
       } else {
+        // 若沒有存 markdownContent，則用現有表單生成一次，並填入 markdownContent
         markdownContent.value = generateMarkdownFromForm(form)
       }
     }
@@ -499,6 +706,13 @@ const getQuestionTypeName = (type: QuestionType) => {
               儲存
             </button>
             <button
+              @click="resetToDefaultSurvey"
+              class="px-4 py-2 text-sm bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors"
+              title="清除本地快取並載入預設的 2025 問卷"
+            >
+              重置快取
+            </button>
+            <button
               @click="previewForm"
               class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
@@ -563,6 +777,32 @@ const getQuestionTypeName = (type: QuestionType) => {
           rows="2"
           placeholder="新增表單描述（選填）"
         />
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">展示模式</label>
+          <div class="flex items-center gap-4">
+            <label class="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                class="text-blue-600"
+                :checked="(form.displayMode ?? 'step-by-step') === 'step-by-step'"
+                @change="form.displayMode = 'step-by-step'"
+              />
+              <span class="text-sm text-gray-700">單題模式</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                class="text-blue-600"
+                :checked="form.displayMode === 'all-at-once'"
+                @change="form.displayMode = 'all-at-once'"
+              />
+              <span class="text-sm text-gray-700">全頁模式</span>
+            </label>
+          </div>
+          <p class="text-xs text-gray-500 mt-1">
+            單題模式：一次顯示一題；全頁模式：所有題目一次展開，提交時整體驗證。
+          </p>
+        </div>
       </div>
 
       <!-- 題目列表 -->

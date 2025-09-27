@@ -2,6 +2,8 @@
 
 export type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'date' | 'file' | 'divider'
 
+export type DisplayMode = 'step-by-step' | 'all-at-once'
+
 export interface Option {
   id: string
   text: string
@@ -21,6 +23,7 @@ export interface Form {
   title: string
   description: string
   questions: Question[]
+  displayMode?: DisplayMode
   createdAt?: string
   updatedAt?: string
   userId?: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -7,28 +7,117 @@ const router = useRouter()
 // 範例問卷資料
 const forms = ref([
   {
-    id: 1,
+    id: '1',
     title: '客戶滿意度調查',
-    description: '了解客戶對我們服務的滿意程度',
-    responseCount: 42,
-    createdAt: new Date('2025-09-20'),
-    status: 'active'
+    description: '感謝您抽出寶貴時間填寫這份問卷，您的意見對我們非常重要',
+    responseCount: 0,
+    createdAt: new Date('2025-09-26'),
+    status: 'active',
+    questions: [
+      {
+        id: 'name',
+        type: 'text',
+        title: '請問您的姓名是？',
+        description: '請提供您的真實姓名以便我們後續聯繫',
+        required: true
+      },
+      {
+        id: 'satisfaction-overall',
+        type: 'radio',
+        title: '整體來說，您對我們的服務滿意嗎？',
+        description: '請根據您的整體體驗進行評分',
+        required: true,
+        options: [
+          { id: 'very-satisfied', text: '非常滿意' },
+          { id: 'satisfied', text: '滿意' },
+          { id: 'neutral', text: '普通' },
+          { id: 'dissatisfied', text: '不滿意' },
+          { id: 'very-dissatisfied', text: '非常不滿意' }
+        ]
+      },
+      {
+        id: 'service-quality',
+        type: 'checkbox',
+        title: '您認為我們在以下哪些方面表現良好？',
+        description: '可複選多項',
+        required: true,
+        options: [
+          { id: 'attitude', text: '服務態度佳' },
+          { id: 'speed', text: '回應速度快' },
+          { id: 'professional', text: '專業能力強' },
+          { id: 'price', text: '價格合理' },
+          { id: 'other', text: '其他' }
+        ]
+      },
+      {
+        id: 'recommendation',
+        type: 'radio',
+        title: '您會推薦我們的服務給其他人嗎？',
+        description: '請選擇您的推薦意願',
+        required: true,
+        options: [
+          { id: 'yes', text: '會推薦' },
+          { id: 'no', text: '不會推薦' }
+        ]
+      },
+      {
+        id: 'suggestions',
+        type: 'textarea',
+        title: '請提供您的改善建議',
+        description: '我們很重視您的意見，請告訴我們可以如何改善',
+        required: false
+      },
+      {
+        id: 'contact',
+        type: 'text',
+        title: '聯絡方式（選填）',
+        description: '如您願意，請留下電話或email，我們可能會進一步聯繫',
+        required: false
+      }
+    ]
   },
   {
-    id: 2,
+    id: '2',
     title: '年度員工調查問卷',
     description: '收集員工對公司文化與福利的意見',
     responseCount: 128,
     createdAt: new Date('2025-09-15'),
-    status: 'active'
+    status: 'active',
+    questions: [
+      {
+        id: 'department',
+        type: 'text',
+        title: '您所屬的部門',
+        required: true
+      },
+      {
+        id: 'satisfaction',
+        type: 'rating',
+        title: '對公司整體滿意度',
+        required: true
+      }
+    ]
   },
   {
-    id: 3,
+    id: '3',
     title: '產品回饋表單',
     description: '收集用戶對新產品的使用體驗',
     responseCount: 15,
     createdAt: new Date('2025-09-10'),
-    status: 'draft'
+    status: 'draft',
+    questions: [
+      {
+        id: 'product-usage',
+        type: 'radio',
+        title: '您使用此產品多久了？',
+        required: true,
+        options: [
+          { id: '1week', text: '少於一週' },
+          { id: '1month', text: '1個月' },
+          { id: '3months', text: '3個月以上' }
+        ]
+      }
+    ]
   }
 ])
 
@@ -54,15 +143,26 @@ const createNewForm = () => {
   router.push('/editor/new')
 }
 
-const openForm = (id: number) => {
+// 儲存問卷資料到 localStorage
+const saveFormsToStorage = () => {
+  localStorage.setItem('qter_forms', JSON.stringify(forms.value))
+}
+
+// 頁面載入時儲存問卷資料
+onMounted(() => {
+  saveFormsToStorage()
+})
+
+const openForm = (id: string) => {
   router.push(`/editor/${id}`)
 }
 
-const viewResponses = (id: number) => {
+const viewResponses = (id: string) => {
   router.push(`/responses/${id}`)
 }
 
-const fillForm = (id: number) => {
+const fillForm = (id: string) => {
+  saveFormsToStorage() // 確保資料已儲存
   router.push(`/fill/${id}`)
 }
 </script>
