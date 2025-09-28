@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, type ComponentPublicInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 import { api } from '@/services/api'
@@ -243,8 +243,12 @@ const submitForm = async () => {
 const goHome = () => router.push('/')
 
 // 工具：設定題目容器 ref
-const setQuestionRef = (qid: string) => (el: HTMLElement | null) => {
-  questionRefs.set(qid, el)
+const setQuestionRef = (qid: string) => (el: Element | ComponentPublicInstance | null) => {
+  if (el && 'nodeType' in el && el instanceof HTMLElement) {
+    questionRefs.set(qid, el)
+  } else {
+    questionRefs.set(qid, null)
+  }
 }
 </script>
 

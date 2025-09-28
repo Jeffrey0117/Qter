@@ -180,13 +180,12 @@ export function renderAdvancedMarkdown(markdown: string): {
   // DOMPurify：過濾並限制 style 屬性
   const purify = DOMPurify
   // Hook 過濾 style 內容
-  purify.addHook('uponSanitizeAttribute', (node) => {
-    if (node.attrName === 'style' && typeof node.attrValue === 'string') {
-      node.attrValue = filterInlineStyle(node.attrValue)
-      if (!node.attrValue) {
+  purify.addHook('uponSanitizeAttribute', (node: any, data: any) => {
+    if (data.attrName === 'style' && typeof data.attrValue === 'string') {
+      data.attrValue = filterInlineStyle(data.attrValue)
+      if (!data.attrValue) {
         // 移除空的 style
-        // @ts-ignore
-        delete node.attrValue
+        data.keepAttr = false
       }
     }
   })
@@ -204,12 +203,11 @@ export function renderAdvancedMarkdown(markdown: string): {
 export function sanitizeHTMLFragment(input: string | undefined | null): string {
   if (!input) return ''
   // 使用相同 style 過濾 hook
-  DOMPurify.addHook('uponSanitizeAttribute', (node) => {
-    if (node.attrName === 'style' && typeof node.attrValue === 'string') {
-      node.attrValue = filterInlineStyle(node.attrValue)
-      if (!node.attrValue) {
-        // @ts-ignore
-        delete node.attrValue
+  DOMPurify.addHook('uponSanitizeAttribute', (node: any, data: any) => {
+    if (data.attrName === 'style' && typeof data.attrValue === 'string') {
+      data.attrValue = filterInlineStyle(data.attrValue)
+      if (!data.attrValue) {
+        data.keepAttr = false
       }
     }
   })
