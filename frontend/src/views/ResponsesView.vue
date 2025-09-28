@@ -140,8 +140,8 @@ onMounted(() => {
       
       // 載入回應
       const allResponses = JSON.parse(localStorage.getItem('qter_all_responses') || '{}')
-      if (allResponses[formId]) {
-        responses.value = allResponses[formId]
+      if (allResponses[formId as string]) {
+        responses.value = allResponses[formId as string]
       }
     } else {
       alert('找不到問卷')
@@ -281,7 +281,7 @@ const goToPage = (page: number) => {
             
             <!-- 選擇題統計 -->
             <div v-if="stat.type === 'radio' || stat.type === 'checkbox'" class="space-y-2">
-              <div v-for="(answer, optionId) in stat.answers" :key="optionId as string">
+              <div v-for="(answer, optionId) in (stat.answers as Record<string, any>)" :key="optionId as string">
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-gray-600">{{ answer.text }}</span>
                   <span class="text-sm font-medium">{{ answer.count }} ({{ answer.percentage }}%)</span>

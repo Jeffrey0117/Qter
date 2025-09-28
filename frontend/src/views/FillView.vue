@@ -83,10 +83,10 @@ onMounted(() => {
       form.value = savedForm
 
       // 預設值與向後相容
-      if (typeof form.value.autoAdvance === 'undefined') form.value.autoAdvance = true
-      if (typeof form.value.autoAdvanceDelay === 'undefined') form.value.autoAdvanceDelay = 300
-      if (typeof form.value.showProgress === 'undefined') form.value.showProgress = true
-      if (typeof form.value.allowGoBack === 'undefined') form.value.allowGoBack = true
+      if (form.value && typeof form.value.autoAdvance === 'undefined') form.value.autoAdvance = true
+      if (form.value && typeof form.value.autoAdvanceDelay === 'undefined') form.value.autoAdvanceDelay = 300
+      if (form.value && typeof form.value.showProgress === 'undefined') form.value.showProgress = true
+      if (form.value && typeof form.value.allowGoBack === 'undefined') form.value.allowGoBack = true
 
       // 套用 Markdown 內宣告的樣式與字體（若有）
       if (typeof savedForm.markdownContent === 'string') {
@@ -502,8 +502,8 @@ const handleFileUpload = (questionId: string, file: File) => {
                     @click="handleRatingChange(currentQuestion.id, i)"
                     class="text-3xl transition-colors"
                     :class="{
-                      'text-yellow-400': (parseInt(responses.get(currentQuestion.id) || '0') >= i),
-                      'text-gray-300': (parseInt(responses.get(currentQuestion.id) || '0') < i)
+                      'text-yellow-400': (parseInt(responses.get(currentQuestion.id) as string || '0') >= i),
+                      'text-gray-300': (parseInt(responses.get(currentQuestion.id) as string || '0') < i)
                     }"
                   >
                     ⭐
@@ -550,7 +550,7 @@ const handleFileUpload = (questionId: string, file: File) => {
                     :id="`file_${currentQuestion.id}`"
                     @change="(e) => {
                       const files = (e.target as HTMLInputElement).files
-                      if (files && files[0]) {
+                      if (files && files[0] && currentQuestion) {
                         handleFileUpload(currentQuestion.id, files[0])
                       }
                     }"
