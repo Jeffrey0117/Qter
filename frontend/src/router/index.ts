@@ -4,6 +4,8 @@ import EditorView from '../views/EditorView.vue'
 import FillView from '../views/FillView.vue'
 import ResponsesView from '../views/ResponsesView.vue'
 import AllAtOnceView from '../views/AllAtOnceView.vue'
+import PublicFillView from '../views/PublicFillView.vue'
+import DemoSurveyView from '../views/DemoSurveyView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +29,16 @@ const router = createRouter({
       path: '/fill/:id/all',
       name: 'fill-all',
       component: AllAtOnceView
+    },
+    {
+      path: '/s/:hash',
+      name: 'public-fill',
+      component: PublicFillView
+    },
+    {
+      path: '/demo',
+      name: 'demo-survey',
+      component: DemoSurveyView
     },
     {
       path: '/responses/:id',

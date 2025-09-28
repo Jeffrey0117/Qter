@@ -27,6 +27,11 @@ interface Form {
   description: string
   questions: Question[]
   displayMode?: 'step-by-step' | 'all-at-once'
+  // 新增設定
+  autoAdvance?: boolean
+  autoAdvanceDelay?: number
+  showProgress?: boolean
+  allowGoBack?: boolean
 }
 
 // 編輯器模式
@@ -43,8 +48,22 @@ const form = reactive<Form>({
   title: '未命名問卷',
   description: '',
   questions: [],
-  displayMode: 'all-at-once'
+  displayMode: 'step-by-step',
+  // 預設值處理
+  autoAdvance: true,
+  autoAdvanceDelay: 300,
+  showProgress: true,
+  allowGoBack: true,
 })
+
+// 設定變更即時儲存
+watch(
+  () => [form.autoAdvance, form.autoAdvanceDelay, form.showProgress, form.allowGoBack, form.displayMode],
+  () => {
+    persistFormToLocalStorage()
+  },
+  { deep: false }
+)
 
  // Markdown 內容（示範含 style、Google Fonts、自訂卡片樣式與 HTML 標題）
 const markdownContent = ref(`---
@@ -498,28 +517,15 @@ const handleDragEnd = () => {
   draggedQuestion.value = null
 }
 
-// 儲存表單
-const saveForm = () => {
-  // 若在 Markdown 模式，先解析 Markdown 並同步至視覺資料，確保儲存與預覽一致
-  if (editorMode.value === 'markdown') {
-    const parsed = parseMarkdownToForm(markdownContent.value)
-    // 保留 id 與 displayMode
-    parsed.id = form.id
-    parsed.displayMode = form.displayMode
-    // 同步到視覺模型
-    form.title = parsed.title
-    form.description = parsed.description
-    form.questions = parsed.questions
-  }
-
-  // 儲存到 localStorage
+/**
+ * 即時持久化表單（不提示）
+ */
+function persistFormToLocalStorage() {
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
   const toSave = {
     ...form,
-    // 於 Markdown 模式：保留使用者原始 Markdown（含 <style> 與 @import）
-    // 於視覺模式：以目前表單資料序列化
     markdownContent: editorMode.value === 'markdown'
       ? markdownContent.value
       : generateMarkdownFromForm(form)
@@ -532,6 +538,29 @@ const saveForm = () => {
   }
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+}
+
+// 儲存表單（顯示提示）
+const saveForm = () => {
+  // 若在 Markdown 模式，先解析 Markdown 並同步至視覺資料，確保儲存與預覽一致
+  if (editorMode.value === 'markdown') {
+    const parsed = parseMarkdownToForm(markdownContent.value)
+    // 保留 id 與展示、互動設定
+    parsed.id = form.id
+    parsed.displayMode = form.displayMode
+    // 僅在 Markdown 有提供內容時才覆蓋，避免清空現有資料
+    if (parsed.title && parsed.title !== '未命名問卷') {
+      form.title = parsed.title
+    }
+    if (typeof parsed.description === 'string' && parsed.description.trim().length > 0) {
+      form.description = parsed.description
+    }
+    if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      form.questions = parsed.questions
+    }
+  }
+
+  persistFormToLocalStorage()
   alert('問卷已儲存！')
 }
 
@@ -568,14 +597,14 @@ const resetToDefaultSurvey = () => {
     router.replace(`/editor/${stableId}`)
   }
 
-  // 由內建 Markdown 載入，並強制為全頁模式
+  // 由內建 Markdown 載入，沿用目前展示模式（預設 step-by-step）
   const parsed = parseMarkdownToForm(markdownContent.value)
   parsed.id = form.id
-  parsed.displayMode = 'all-at-once'
+  parsed.displayMode = form.displayMode ?? 'step-by-step'
   form.title = parsed.title
   form.description = parsed.description
   form.questions = parsed.questions
-  form.displayMode = 'all-at-once'
+  form.displayMode = form.displayMode ?? 'step-by-step'
 
   // 立即持久化到 localStorage，確保 FillView/AllAtOnceView 能讀到
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
@@ -602,9 +631,16 @@ const previewForm = () => {
     const parsed = parseMarkdownToForm(markdownContent.value)
     parsed.id = form.id
     parsed.displayMode = form.displayMode
-    form.title = parsed.title
-    form.description = parsed.description
-    form.questions = parsed.questions
+    // 僅在 Markdown 有提供內容時才覆蓋
+    if (parsed.title && parsed.title !== '未命名問卷') {
+      form.title = parsed.title
+    }
+    if (typeof parsed.description === 'string' && parsed.description.trim().length > 0) {
+      form.description = parsed.description
+    }
+    if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      form.questions = parsed.questions
+    }
   }
 
   if ((form.displayMode ?? 'step-by-step') === 'all-at-once') {
@@ -643,15 +679,27 @@ onMounted(() => {
     if (savedForm) {
       Object.assign(form, savedForm)
 
+      // 向後相容與預設值
+      if (typeof form.autoAdvance === 'undefined') form.autoAdvance = true
+      if (typeof form.autoAdvanceDelay === 'undefined') form.autoAdvanceDelay = 300
+      if (typeof form.showProgress === 'undefined') form.showProgress = true
+      if (typeof form.allowGoBack === 'undefined') form.allowGoBack = true
+
       if (savedForm.markdownContent && typeof savedForm.markdownContent === 'string') {
         markdownContent.value = savedForm.markdownContent
-        // 以 markdownContent 作為真實來源解析，同步到視覺資料
+        // 以 markdownContent 作為真實來源解析，同步到視覺資料（有提供才覆蓋）
         const parsed = parseMarkdownToForm(markdownContent.value)
         parsed.id = form.id
         parsed.displayMode = form.displayMode
-        form.title = parsed.title
-        form.description = parsed.description
-        form.questions = parsed.questions
+        if (parsed.title && parsed.title !== '未命名問卷') {
+          form.title = parsed.title
+        }
+        if (typeof parsed.description === 'string' && parsed.description.trim().length > 0) {
+          form.description = parsed.description
+        }
+        if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          form.questions = parsed.questions
+        }
       } else {
         // 若沒有存 markdownContent，則用現有表單生成一次，並填入 markdownContent
         markdownContent.value = generateMarkdownFromForm(form)
@@ -741,13 +789,7 @@ const getQuestionTypeName = (type: QuestionType) => {
             >
               儲存
             </button>
-            <button
-              @click="resetToDefaultSurvey"
-              class="px-4 py-2 text-sm bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors"
-              title="清除本地快取並載入預設的 2025 問卷"
-            >
-              重置快取
-            </button>
+            <!-- 重置快取：從頂部工具列移除，避免誤觸。若需使用可在程式內呼叫 resetToDefaultSurvey()。 -->
             <button
               @click="previewForm"
               class="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -843,6 +885,86 @@ const getQuestionTypeName = (type: QuestionType) => {
           <p class="text-xs text-gray-500 mt-1">
             單題模式：一次顯示一題；全頁模式：所有題目一次展開，提交時整體驗證。
           </p>
+        </div>
+      </div>
+
+      <!-- 問卷設定 -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <span>⚙️</span>
+          <span>問卷設定</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 自動跳到下一題 -->
+          <div>
+            <label class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span>⏩</span>
+                <span class="text-sm font-medium text-gray-700">自動跳到下一題</span>
+              </div>
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                :checked="form.autoAdvance !== false"
+                @change="form.autoAdvance = ($event.target as HTMLInputElement).checked"
+              />
+            </label>
+            <p class="text-xs text-gray-500 mt-1">選擇單選/評分後是否自動前往下一題</p>
+          </div>
+
+          <!-- 顯示進度條 -->
+          <div>
+            <label class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span>📊</span>
+                <span class="text-sm font-medium text-gray-700">顯示進度條</span>
+              </div>
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                :checked="form.showProgress !== false"
+                @change="form.showProgress = ($event.target as HTMLInputElement).checked"
+              />
+            </label>
+            <p class="text-xs text-gray-500 mt-1">在填寫頁面頂部顯示進度</p>
+          </div>
+
+          <!-- 延遲時間（僅在自動跳題開啟時顯示） -->
+          <div class="md:col-span-2" v-if="form.autoAdvance !== false">
+            <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <span>⏱️</span>
+              <span>自動跳題延遲（毫秒）</span>
+              <span class="ml-2 text-xs text-gray-500">{{ form.autoAdvanceDelay ?? 300 }} ms</span>
+            </label>
+            <input
+              type="range"
+              min="100"
+              max="1000"
+              step="50"
+              :value="form.autoAdvanceDelay ?? 300"
+              @input="form.autoAdvanceDelay = parseInt(($event.target as HTMLInputElement).value)"
+              class="w-full accent-blue-500"
+            />
+            <p class="text-xs text-gray-500 mt-1">設定自動跳題前的延遲時間（100-1000ms）</p>
+          </div>
+
+          <!-- 允許回到上一題 -->
+          <div>
+            <label class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span>↩️</span>
+                <span class="text-sm font-medium text-gray-700">允許回到上一題</span>
+              </div>
+              <input
+                type="checkbox"
+                class="toggle toggle-primary"
+                :checked="form.allowGoBack !== false"
+                @change="form.allowGoBack = ($event.target as HTMLInputElement).checked"
+              />
+            </label>
+            <p class="text-xs text-gray-500 mt-1">是否允許填寫者返回上一題</p>
+          </div>
         </div>
       </div>
 

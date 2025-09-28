@@ -24,6 +24,12 @@ export interface Form {
   description: string
   questions: Question[]
   displayMode?: DisplayMode
+  // 新增設定：自動跳題與延遲（預設 true / 300ms）
+  autoAdvance?: boolean
+  autoAdvanceDelay?: number
+  // 顯示進度條（預設 true）與允許回到上一題（預設 true）
+  showProgress?: boolean
+  allowGoBack?: boolean
   createdAt?: string
   updatedAt?: string
   userId?: string

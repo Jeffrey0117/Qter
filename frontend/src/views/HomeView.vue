@@ -15,8 +15,14 @@ const forms = ref([
     createdAt: new Date('2025-09-20'),
     status: 'active',
     featured: true,
+    displayMode: 'step-by-step',
     // 進階 Markdown 與自訂樣式（只在填寫頁面使用）
     markdownContent: `
+---
+title: 科技趨勢調查 2025
+description: 探索生成式 AI、邊緣運算、低程式碼工具等最新趨勢
+---
+
 <style>
   /* 字體 */
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap');
@@ -369,7 +375,29 @@ const createNewForm = () => {
 
 // 儲存問卷資料到 localStorage
 const saveFormsToStorage = () => {
-  localStorage.setItem('qter_forms', JSON.stringify(forms.value))
+  // 以種子資料補齊，但不覆蓋使用者已編輯過的表單（依 id 合併）
+  try {
+    const existing: any[] = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const byId = new Map<string, any>(existing.map(f => [f.id, f]))
+    const merged: any[] = []
+
+    for (const seed of forms.value as any[]) {
+      if (byId.has(seed.id)) {
+        // 保留使用者內容（包含 displayMode / markdownContent / questions 等）
+        merged.push(byId.get(seed.id))
+        byId.delete(seed.id)
+      } else {
+        merged.push(seed)
+      }
+    }
+    // 其餘使用者自建表單也保留
+    for (const rest of byId.values()) merged.push(rest)
+
+    localStorage.setItem('qter_forms', JSON.stringify(merged))
+  } catch {
+    // 失敗則退回原行為
+    localStorage.setItem('qter_forms', JSON.stringify(forms.value))
+  }
 }
 
 // 頁面載入時儲存問卷資料
@@ -388,8 +416,21 @@ const viewResponses = (id: string) => {
 }
 
 const fillForm = (id: string) => {
-  saveFormsToStorage() // 確保資料已儲存
-  router.push(`/fill/${id}`)
+  // 先確保最新列表已寫入
+  saveFormsToStorage()
+  // 讀取該表單設定，依 displayMode 走不同路由
+  try {
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const target = savedForms.find((f: any) => f.id === id)
+    const mode = target?.displayMode ?? 'step-by-step'
+    if (mode === 'all-at-once') {
+      router.push(`/fill/${id}/all`)
+    } else {
+      router.push(`/fill/${id}`)
+    }
+  } catch {
+    router.push(`/fill/${id}`)
+  }
 }
 
 </script>

@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
+import { api } from '@/services/api'
 
 // 題目類型定義（與 FillView.vue 對齊）
 type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
@@ -191,6 +192,28 @@ const submitForm = async () => {
     return
   }
 
+  // 若為公開分享鏈路填寫，提交到 Workers API
+  try {
+    const shareHash = (route.query?.s as string) || ''
+    if (shareHash) {
+      await api.public.submitByHash(shareHash, {
+        responses: Object.fromEntries(responses),
+      })
+      // 清除暫存
+      localStorage.removeItem(`qter_response_${form.value.id}`)
+      setTimeout(() => {
+        isSubmitting.value = false
+        isSubmitted.value = true
+      }, 400)
+      return
+    }
+  } catch (e) {
+    console.error(e)
+    alert('提交失敗，請稍後再試')
+    isSubmitting.value = false
+    return
+  }
+  
   // 寫入回應
   const allResponses = JSON.parse(localStorage.getItem('qter_all_responses') || '{}')
   if (!allResponses[form.value.id]) {

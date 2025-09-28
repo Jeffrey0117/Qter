@@ -1,17 +1,20 @@
 // API 服務層
-import type { Form, Question } from '../types'
+import type { Form } from '../types'
 
 // API 基礎配置
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+// 建議在 .env.local 設定 VITE_API_BASE_URL，例如：
+// - 開發 Workers: http://localhost:8787
+// - 反向代理路由: /api
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-// 通用 API 請求函數
+// 通用 API 請求函數（fetch 版）
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers || {}),
     },
     ...options,
   }
@@ -20,150 +23,20 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = localStorage.getItem('auth_token')
   if (token) {
     config.headers = {
-      ...config.headers,
+      ...(config.headers || {}),
       Authorization: `Bearer ${token}`,
     }
   }
 
   try {
     const response = await fetch(url, config)
-
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`)
     }
-
-<<<<<<< HEAD
-  async forgotPassword(email: string) {
-    return this.axiosInstance.post('/auth/forgot-password', { email });
-  }
-
-  async resetPassword(data: { token: string; password: string }) {
-    return this.axiosInstance.post('/auth/reset-password', data);
-  }
-
-  async getProfile() {
-    return this.axiosInstance.get('/auth/profile');
-  }
-
-  async updateProfile(data: { name?: string; email?: string }) {
-    return this.axiosInstance.put('/auth/profile', data);
-  }
-
-  // Form endpoints
-  async getForms(params?: { page?: number; limit?: number; search?: string; status?: string }) {
-    return this.axiosInstance.get('/forms', { params });
-  }
-
-  async getForm(id: number) {
-    return this.axiosInstance.get(`/forms/${id}`);
-  }
-
-  // Public form (for filling)
-  async getPublicForm(id: number) {
-    // backend mounts formRoutes at /api with public route GET /public/:id
-    return this.axiosInstance.get(`/public/${id}`);
-  }
-
-  async createForm(data: any) {
-    return this.axiosInstance.post('/forms', data);
-  }
-
-  async updateForm(id: number, data: any) {
-    return this.axiosInstance.put(`/forms/${id}`, data);
-  }
-
-  async deleteForm(id: number) {
-    return this.axiosInstance.delete(`/forms/${id}`);
-  }
-
-  async duplicateForm(id: number) {
-    return this.axiosInstance.post(`/forms/${id}/duplicate`);
-  }
-
-  async publishForm(id: number) {
-    return this.axiosInstance.patch(`/forms/${id}/publish`);
-  }
-
-  async unpublishForm(id: number) {
-    return this.axiosInstance.patch(`/forms/${id}/unpublish`);
-  }
-
-  // Question endpoints
-  async addQuestion(formId: number, data: any) {
-    return this.axiosInstance.post(`/forms/${formId}/questions`, data);
-  }
-
-  async updateQuestion(formId: number, questionId: number, data: any) {
-    return this.axiosInstance.put(`/forms/${formId}/questions/${questionId}`, data);
-  }
-
-  async deleteQuestion(formId: number, questionId: number) {
-    return this.axiosInstance.delete(`/forms/${formId}/questions/${questionId}`);
-  }
-
-  async reorderQuestions(formId: number, questionIds: number[]) {
-    return this.axiosInstance.patch(`/forms/${formId}/questions/reorder`, { questionIds });
-  }
-
-  // Response endpoints
-  async submitResponse(formId: number, data: any) {
-    return this.axiosInstance.post(`/forms/${formId}/responses`, data);
-  }
-
-  async getFormResponses(formId: number, params?: any) {
-    return this.axiosInstance.get(`/forms/${formId}/responses`, { params });
-  }
-
-  async getResponse(responseId: number) {
-    return this.axiosInstance.get(`/responses/${responseId}`);
-  }
-
-  async deleteResponse(responseId: number) {
-    return this.axiosInstance.delete(`/responses/${responseId}`);
-  }
-
-  async getFormStatistics(formId: number) {
-    return this.axiosInstance.get(`/forms/${formId}/statistics`);
-  }
-
-  async exportResponses(formId: number, format: 'csv' | 'excel') {
-    return this.axiosInstance.get(`/forms/${formId}/export`, {
-      params: { format },
-      responseType: 'blob',
-    });
-  }
-
-  // File endpoints
-  async uploadFile(file: File, onProgress?: (progress: number) => void) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return this.axiosInstance.post('/files/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total && onProgress) {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          onProgress(progress);
-        }
-      },
-    });
-  }
-
-  async deleteFile(fileId: string) {
-    return this.axiosInstance.delete(`/files/${fileId}`);
-  }
-
-  // Generic request method for custom endpoints
-  request(config: AxiosRequestConfig) {
-    return this.axiosInstance.request(config);
-=======
     return await response.json()
   } catch (error) {
     console.error('API Request failed:', error)
     throw error
->>>>>>> de9b241
   }
 }
 
@@ -202,7 +75,7 @@ export const formApi = {
     })
   },
 
-  // 提交表單回應
+  // 提交表單回應（私有 API，日後保留）
   async submitResponse(formId: string, responses: Record<string, any>): Promise<any> {
     return apiRequest(`/forms/${formId}/responses`, {
       method: 'POST',
@@ -240,7 +113,22 @@ export const authApi = {
   },
 }
 
-// 檔案上傳 API
+// 公開填寫（Cloudflare Workers）API
+export const publicApi = {
+  // 以分享哈希取得公開表單
+  async getFormByHash(hash: string): Promise<any> {
+    return apiRequest(`/public/s/${hash}`)
+  },
+  // 提交公開回覆（可附帶 Turnstile token）
+  async submitByHash(hash: string, payload: { responses: Record<string, any>; turnstileToken?: string }): Promise<any> {
+    return apiRequest(`/public/s/${hash}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+// 檔案上傳 API（占位，後端可另行實作）
 export const fileApi = {
   // 上傳檔案
   async uploadFile(file: File): Promise<{ url: string; filename: string }> {
@@ -251,7 +139,7 @@ export const fileApi = {
       method: 'POST',
       body: formData,
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
       },
     })
 
@@ -268,4 +156,5 @@ export const api = {
   form: formApi,
   auth: authApi,
   file: fileApi,
+  public: publicApi,
 }

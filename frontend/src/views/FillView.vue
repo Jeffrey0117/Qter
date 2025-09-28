@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
+import { api } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -30,6 +31,11 @@ interface Form {
   description: string
   questions: Question[]
   displayMode?: 'step-by-step' | 'all-at-once'
+  // 新增設定
+  autoAdvance?: boolean
+  autoAdvanceDelay?: number
+  showProgress?: boolean
+  allowGoBack?: boolean
   featured?: boolean
   theme?: {
     background?: string
@@ -75,6 +81,12 @@ onMounted(() => {
     const savedForm = savedForms.find((f: any) => f.id === formId)
     if (savedForm) {
       form.value = savedForm
+
+      // 預設值與向後相容
+      if (typeof form.value.autoAdvance === 'undefined') form.value.autoAdvance = true
+      if (typeof form.value.autoAdvanceDelay === 'undefined') form.value.autoAdvanceDelay = 300
+      if (typeof form.value.showProgress === 'undefined') form.value.showProgress = true
+      if (typeof form.value.allowGoBack === 'undefined') form.value.allowGoBack = true
 
       // 套用 Markdown 內宣告的樣式與字體（若有）
       if (typeof savedForm.markdownContent === 'string') {
@@ -183,6 +195,28 @@ const submitForm = async () => {
     isSubmitting.value = false
     return
   }
+
+  // 若為公開分享鏈路填寫，提交到 Workers API
+  try {
+    const shareHash = (route.query?.s as string) || ''
+    if (shareHash) {
+      await api.public.submitByHash(shareHash, {
+        responses: Object.fromEntries(responses),
+      })
+      // 清除暫存答案
+      localStorage.removeItem(`qter_response_${form.value.id}`)
+      setTimeout(() => {
+        isSubmitting.value = false
+        isSubmitted.value = true
+      }, 500)
+      return
+    }
+  } catch (e) {
+    console.error(e)
+    alert('提交失敗，請稍後再試')
+    isSubmitting.value = false
+    return
+  }
   
   // 儲存回應到 localStorage
   const allResponses = JSON.parse(localStorage.getItem('qter_all_responses') || '{}')
@@ -229,10 +263,13 @@ const goHome = () => {
 const handleRadioChange = (questionId: string, optionId: string) => {
   responses.set(questionId, optionId)
   errors.delete(questionId)
-  // 單選題選擇後自動跳下一題
-  setTimeout(() => {
-    nextQuestion()
-  }, 300)
+  // 單選題選擇後自動跳下一題（依設定）
+  if (form.value?.autoAdvance !== false) {
+    const delay = form.value?.autoAdvanceDelay ?? 300
+    setTimeout(() => {
+      nextQuestion()
+    }, delay)
+  }
 }
 
 // 處理多選題
@@ -257,14 +294,15 @@ const handleTextInput = (questionId: string, value: string) => {
 // 處理 Enter 鍵事件
 const handleKeyPress = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.shiftKey) {
-    // 對於 textarea，Shift+Enter 換行，Enter 下一題
-    if (currentQuestion.value?.type === 'textarea') {
-      event.preventDefault()
-      nextQuestion()
-    } else if (currentQuestion.value?.type === 'text') {
-      // 對於 text 輸入框，Enter 直接下一題
-      event.preventDefault()
-      nextQuestion()
+    // 僅在開啟自動跳題時，Enter 觸發下一題
+    if (form.value?.autoAdvance !== false) {
+      if (currentQuestion.value?.type === 'textarea') {
+        event.preventDefault()
+        nextQuestion()
+      } else if (currentQuestion.value?.type === 'text') {
+        event.preventDefault()
+        nextQuestion()
+      }
     }
   }
 }
@@ -273,10 +311,13 @@ const handleKeyPress = (event: KeyboardEvent) => {
 const handleRatingChange = (questionId: string, rating: number) => {
   responses.set(questionId, rating.toString())
   errors.delete(questionId)
-  // 評分題選擇後自動跳下一題
-  setTimeout(() => {
-    nextQuestion()
-  }, 300)
+  // 評分題選擇後自動跳下一題（依設定）
+  if (form.value?.autoAdvance !== false) {
+    const delay = form.value?.autoAdvanceDelay ?? 300
+    setTimeout(() => {
+      nextQuestion()
+    }, delay)
+  }
 }
 
 // 處理日期輸入
@@ -329,7 +370,7 @@ const handleFileUpload = (questionId: string, file: File) => {
     <!-- 表單填寫界面 -->
     <div v-else-if="form" class="min-h-screen flex flex-col">
       <!-- 頂部進度條 -->
-      <div class="bg-white shadow-sm">
+      <div v-if="form?.showProgress !== false" class="bg-white shadow-sm">
         <div class="max-w-2xl mx-auto px-4 py-4 progress-boost">
           <div class="flex items-center justify-between mb-2">
             <button
@@ -538,10 +579,10 @@ const handleFileUpload = (questionId: string, file: File) => {
           <div class="flex justify-between mt-6">
             <button
               @click="previousQuestion"
-              :disabled="isFirstQuestion"
+              :disabled="isFirstQuestion || form?.allowGoBack === false"
               :class="[
                 'px-6 py-3 rounded-lg font-medium transition-all',
-                isFirstQuestion
+                (isFirstQuestion || form?.allowGoBack === false)
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
               ]"
