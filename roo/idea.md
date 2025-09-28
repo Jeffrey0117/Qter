@@ -1,250 +1,174 @@
-# QTER 問卷表單管理系統 - 進階客製化功能開發計劃
+# QTER 新官網首頁與 Markdown Storybook 規劃
 
-**專案狀態**：Phase 4 進階功能擴展
-**技術棧**：Vue 3 + TypeScript + Tailwind CSS + Vite
-**新增目標**：支援 HTML/CSS 自訂樣式的進階客製化問卷
+狀態：提案草案（待核可）
+範圍：新增 QTER 介紹首頁＋Markdown 問卷語法 Storybook（教學/範例）
+目標：
+- 對外：清楚傳達 QTER 能力與賣點，提高轉換
+- 對內：提供問卷建立者可查的 Markdown 語法手冊與大量範例
+- 導流：從首頁導向「建立範例問卷」「開啟編輯器」「Docs/Storybook」
 
-## 🎯 專案願景
+關聯程式檔參考：
+- 首頁問卷清單 [HomeView.vue](frontend/src/views/HomeView.vue:1)
+- 填寫（逐題） [FillView.vue](frontend/src/views/FillView.vue:1)
+- 填寫（全頁） AllAtOnceView.vue（未開檔案，路由同 fill/:id/all）
+- 編輯器 [EditorView.vue](frontend/src/views/EditorView.vue:1)
+- 進階 Markdown 解析 [markdown.ts](frontend/src/services/markdown.ts:1)
+- 前端路由 [router/index.ts](frontend/src/router/index.ts:1)
 
-QTER 將從輕量化問卷工具進化為支援完全客製化的問卷平台，讓用戶能夠：
-- 使用 Markdown + HTML/CSS 創建視覺豐富的問卷
-- 自訂字體、顏色、背景圖片等視覺元素
-- 在首頁展示精美的客製化問卷
-- 保持原有的簡潔操作體驗
+------------------------------------------------------------
 
-## 🚀 核心功能進展
+資訊架構與路由
 
-### 已完成模組（Phase 1-3）
-- ✅ **後端 API（100% 完成）**
-  - 認證系統（JWT + Refresh Token）
-  - 表單管理 CRUD
-  - 題目管理系統
-  - 回應收集與統計
-  - 檔案上傳（MinIO）
-  - 資料匯出（CSV/Excel）
+新增路由
+- /: 現有「我的問卷」列表維持不變（內部工作首頁）
+- /site: 對外官網首頁（產品介紹/動態展示/CTA）
+- /docs: 文檔總覽（快速開始、概念）
+- /docs/markdown: Markdown 語法 Storybook（大量範例）
+- /docs/markdown/:slug: 單一範例詳頁（可選）
 
-- ✅ **前端基礎架構（100% 完成）**
-  - Vue 3 + TypeScript 設置
-  - Tailwind CSS 配置
-  - 路由架構
-  - API 服務層
+導覽
+- Navbar：QTER（Logo）｜ 產品｜文件｜範例｜開始使用
+- CTA：進入編輯器新建問卷（跳 /editor/new）
 
-- ✅ **核心問卷功能（90% 完成）**
-  - Dashboard（表單列表）
-  - FormEditor（雙向編輯器：視覺 ↔ Markdown）
-  - FormFill（填寫頁面：單題模式 + 全頁模式）
-  - FormResponses（回應列表）
-  - FormAnalytics（統計頁面）
-  - 8種題型支援
-  - 拖拽排序功能
+------------------------------------------------------------
 
-## 🔥 新功能：進階客製化問卷
+官網首頁 /site 內容模組
 
-### 核心特色
-1. **進階 Markdown 語法**
-   - 支援內嵌 CSS 樣式區塊
-   - 背景圖片語法支援
-   - 字體和顏色自訂設定
-   - HTML 標籤與 Markdown 混合
+- Hero（產品定位＋CTA）
+  - 標題：輕量、可客製、可擴展的問卷系統
+  - CTA：建立範例問卷｜查看語法手冊
+  - 動態背景與小動畫（展示字體/漸層/卡片）
 
-2. **安全機制**
-   - 完整 HTML/CSS 支援
-   - Content Security Policy 防護
-   - CSS Sanitization 過濾機制
-   - XSS 攻擊防範
+- 功能特點區（Icon + Copy）
+  - 進階 Markdown（HTML/CSS/Google Fonts）
+  - 安全渲染（DOMPurify + CSS 白名單）
+  - 雙展示模式（逐題/全頁）
+  - 視覺模板（卡片、徽章、進度條等）
 
-3. **首頁精選展示**
-   - 新增「精選問卷」區域
-   - 客製化樣式卡片展示
-   - 直接點擊填寫，無需額外導航
+- 互動展示區（Live Demo）
+  - 用現有 featured-2025 的片段做動態展示（純前端切片）
+  - 按下載/建立範例，寫入 localStorage，導到 /editor/featured-2025
 
-4. **模板庫系統**
-   - 預設樣式模板
-   - 一鍵套用設計
-   - 範例問卷展示
+- 使用流程（Step-by-step）
+  - 選模板 → 編輯（視覺/Markdown）→ 預覽 → 分享/收集 → 分析
 
-## 🏗️ 技術架構設計
+- 信任/技術區
+  - 技術棧徽章、CSP、安全性說明的連結到 Docs
 
-### 進階 Markdown 語法規範
+- Footer
+  - Docs、GitHub、範例、聯絡
 
-```markdown
----
-title: 客製化問卷標題
-description: 問卷描述
-background: url('./bg-image.jpg')
-theme: custom
----
+------------------------------------------------------------
 
-<style>
-.question-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  border-radius: 10px;
-}
+Markdown 語法 Storybook /docs/markdown
 
-.title {
-  font-family: 'Noto Sans TC', sans-serif;
-  font-size: 24px;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}
+章節結構
+- 基礎
+  - Front matter：title、description
+  - 問題區塊：### 標題、type、required、options
+- 樣式
+  - 內嵌 <style>、@import Google Fonts
+  - 題卡 className 樣式（.qcard-*）
+  - 進度條、徽章、動畫、翻轉卡
+- 元素與安全
+  - 允許的 HTML 標籤與屬性白名單
+  - 允許的 CSS 屬性清單
+  - 潛在風險與最佳實務
+- 進階技巧
+  - 嵌入圖片題目
+  - Emoji 視覺選項
+  - Range、Rating 題型語法
+  - 自訂佈局（grid、flex）注意事項
+- 範例集
+  - 商務、學術、活動、科技主題各 1 範例
+  - 每個範例：可一鍵寫入 localStorage → /editor/:id
 
-.option {
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
-}
-</style>
+每個章節的展示方式
+- 左：Markdown 原始碼（可複製）
+- 右：解析後預覽（透過 [buildAndApplyMarkdown()](frontend/src/services/markdown.ts:254)）
+- 一鍵「載入到編輯器」按鈕：寫入 qter_forms → router.push(/editor/:id)
 
-## 問題標題
-type: radio
-required: true
-style: question-container
-options:
-  - 選項一
-  - 選項二
-```
+------------------------------------------------------------
 
-### 安全機制架構
+技術設計
 
-```typescript
-// CSS Sanitization 層級
-interface SecurityConfig {
-  allowedTags: string[]           // 允許的 HTML 標籤
-  allowedAttributes: string[]     // 允許的屬性
-  allowedCssProperties: string[]  // 允許的 CSS 屬性
-  forbiddenPatterns: RegExp[]     // 禁用的危險模式
-}
+- 重用現有解析
+  - 使用 [renderAdvancedMarkdown()](frontend/src/services/markdown.ts:142) 與 [buildAndApplyMarkdown()](frontend/src/services/markdown.ts:254)
+  - Docs 頁面以 sandbox 容器 id 注入 style，避免干擾其他頁
 
-// Content Security Policy
-const cspConfig = {
-  'style-src': "'self' 'unsafe-inline'",
-  'img-src': "'self' data: blob:",
-  'script-src': "'self'",
-  'object-src': "'none'"
-}
-```
+- 路由與頁面
+  - 新增 SiteHome.vue（/site）
+  - 新增 DocsLayout.vue（/docs）
+  - 新增 DocsMarkdown.vue（/docs/markdown）
+  - 可選：DocsExample.vue（/docs/markdown/:slug）
 
-### 系統流程圖
+- 範例資料來源
+  - 新增 docs/examples.ts，集中管理 Markdown 範例字串
+  - 提供 loadToEditor(exampleId) 將選擇的範例寫入 localStorage
 
-```mermaid
-flowchart TD
-    A[用戶編寫進階 Markdown] --> B[解析器識別 CSS 區塊]
-    B --> C[CSS Sanitization 過濾]
-    C --> D[生成安全的樣式]
-    D --> E[儲存到 localStorage]
-    E --> F[首頁精選區域展示]
-    F --> G[用戶點擊填寫]
-    G --> H[渲染客製化樣式]
-    
-    I[背景圖片上傳] --> J[圖片管理系統]
-    J --> K[生成安全 URL]
-    K --> L[應用到問卷樣式]
-    
-    M[模板庫] --> N[預設樣式]
-    N --> O[一鍵套用]
-    O --> A
-```
+- UI 組件
+  - CodeBlock（帶複製按鈕）
+  - PreviewPane（內部呼叫 buildAndApplyMarkdown）
+  - ExampleCard（標題、描述、載入/預覽按鈕）
 
-## 📋 實作 TODO 清單
+- 安全
+  - 沿用 DOMPurify + CSS 白名單
+  - 在 Docs 頁面也統一用 sanitizeHTMLFragment()
 
-### Phase 4.1: 基礎架構（1週）
-- [ ] **擴展型別定義** - 在 `frontend/src/types/index.ts` 新增客製化問卷相關型別
-- [ ] **設計進階 Markdown 語法規範** - 支援 CSS 樣式區塊和背景圖片語法
-- [ ] **實作 CSS sanitization 函數** - 建立安全的 HTML/CSS 過濾機制
-- [ ] **實作 Content Security Policy** - 配置前端安全策略防範 XSS
+------------------------------------------------------------
 
-### Phase 4.2: 核心功能（2週）
-- [ ] **擴展 Markdown 解析器** - 修改 `EditorView.vue` 支援內嵌 CSS 和 HTML
-- [ ] **設計進階樣式預覽功能** - Markdown 編輯器即時預覽自訂樣式
-- [ ] **實作背景圖片管理功能** - 支援圖片上傳、預覽和 URL 管理
-- [ ] **建立客製化問卷模板庫** - 設計預設樣式模板系統
+里程碑
 
-### Phase 4.3: 前端整合（1週）
-- [ ] **修改首頁 HomeView.vue** - 新增精選問卷展示區域
-- [ ] **更新填寫頁面渲染引擎** - `FillView/AllAtOnceView` 支援自訂樣式
-- [ ] **建立範例客製化問卷** - 展示各種樣式效果的示範問卷
+M1 基礎設置（0.5 週）
+- 新增路由與空白頁：/site、/docs、/docs/markdown
+- 建立 DocsLayout 與基礎側邊欄
 
-### Phase 4.4: 測試與文檔（3天）
-- [ ] **建立安全性測試套件** - 測試各種攻擊向量和邊界情況
-- [ ] **撰寫使用者指南** - 包含語法說明、範例模板和最佳實踐
-- [ ] **更新專案文檔** - 同步更新 `README.md` 和相關技術文檔
+M2 首頁（1 週）
+- 完成 Hero、功能特點、展示區、流程與 Footer
+- CTA 串接到 /editor/new 與 /docs/markdown
 
-## 🔒 安全性考量
+M3 Storybook（1.5 週）
+- 條列語法章節與 Code + Preview 雙欄範本
+- 內建 6-8 個高品質範例，可一鍵載入編輯器
 
-### 防護策略
-1. **輸入驗證**
-   - CSS 屬性白名單過濾
-   - 危險函數檢測（如 `javascript:`、`data:` 等）
-   - HTML 標籤和屬性限制
+M4 文檔收尾與驗收（0.5 週）
+- 補圖文、最佳實務與安全章節
+- 基礎 E2E：章節可載入、預覽可渲染、載入到編輯器成功
 
-2. **內容安全策略**
-   - 嚴格的 CSP 頭部設定
-   - 禁用內聯腳本執行
-   - 限制外部資源載入
+------------------------------------------------------------
 
-3. **運行時保護**
-   - DOM 操作前再次驗證
-   - 動態樣式注入監控
-   - 異常行為檢測
+TODO（僅保留未完成項目）
 
-### 測試覆蓋
-- XSS 注入測試
-- CSS 注入攻擊
-- 圖片上傳安全測試
-- CSP 繞過嘗試
+- [ ] 路由新增與頁面骨架：/site、/docs、/docs/markdown
+- [ ] SiteHome.vue：Hero/功能/展示/流程/CTA/Footer
+- [ ] DocsLayout.vue：側邊欄與頂部導覽
+- [ ] DocsMarkdown.vue：章節大綱＋Code/Preview 雙欄
+- [ ] docs/examples.ts：集中管理 Markdown 範例字串與中繼資料
+- [ ] ExampleCard/CodeBlock/PreviewPane 組件
+- [ ] 一鍵「載入到編輯器」流程：寫入 qter_forms → /editor/:id
+- [ ] 語法手冊章節內容撰寫（基礎/樣式/安全/進階/範例集）
+- [ ] featured-2025 精簡切片展示在 /site
+- [ ] SEO/Meta：/site 的基本 SEO（title/description/open graph）
+- [ ] i18n 規劃（至少保留 zh-TW 為主）
+- [ ] 最佳實務與安全頁：連結到白名單與注意事項
+- [ ] 基本驗收測試：能載入、能預覽、能寫入編輯器
+- [ ] README 加上 /site 與 /docs 導覽入口
 
-## 🎨 視覺設計規範
+（已完成或不再追蹤的舊內容已移除，避免噪音）
 
-### 模板類別
-1. **商務風格** - 簡潔專業的企業問卷
-2. **創意風格** - 漸層色彩的現代設計
-3. **學術風格** - 清晰易讀的研究問卷
-4. **活動風格** - 活潑有趣的互動問卷
+------------------------------------------------------------
 
-### 設計原則
-- 響應式設計優先
-- 無障礙訪問支援
-- 載入效能最佳化
-- 跨瀏覽器相容性
+驗收標準
 
-## 📈 預期效益
+- /site：在 3 秒內載入，CTA 可導向，展示動畫不卡頓
+- /docs/markdown：每個章節有可複製的 Markdown + 預覽效果
+- 一鍵載入：點擊任一範例「載入到編輯器」，自動寫入 localStorage 並打開 /editor/:id，標題/題目/樣式一致
+- 安全：所有預覽與載入均使用 DOMPurify，無 console error
 
-### 用戶價值
-- **創作自由度** ↑ 300% - 完全自訂的視覺設計
-- **問卷吸引力** ↑ 200% - 美觀的視覺呈現提升填寫率
-- **品牌一致性** ↑ 150% - 與企業 CI 完美整合
+------------------------------------------------------------
 
-### 技術價值
-- 建立可擴展的樣式系統
-- 強化安全防護機制
-- 提升平台競爭力
+後續延伸（非本波）
 
-## 🚦 風險管控
-
-### 技術風險
-- **CSS 相容性** - 透過 autoprefixer 解決
-- **效能影響** - 實作樣式快取機制
-- **安全漏洞** - 多層驗證 + 定期安全審計
-
-### 操作風險
-- **學習曲線** - 提供詳細的使用指南
-- **模板品質** - 建立設計審核機制
-- **維護成本** - 自動化測試覆蓋
-
-## 🎯 成功指標
-
-### 量化指標
-- 客製化問卷使用率 > 40%
-- 問卷填寫完成率提升 > 25%
-- 安全事件 = 0
-- 載入效能 < 3s
-
-### 質化指標
-- 用戶回饋積極度
-- 設計師接受度
-- 開發者維護滿意度
-
----
-
-**下一步行動：** 開始 Phase 4.1 基礎架構建設，重點實作型別定義和安全機制。
+- /templates：可瀏覽所有模板並一鍵套用
+- 線上分享：問卷公開分享短連結頁
+- 部署文檔：CSP/反代/資產快取建議

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import { api } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Spinner } from '../../components/ui/spinner';
@@ -37,7 +37,7 @@ const FormShare: React.FC = () => {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['form', formId],
     queryFn: async () => {
-      const res = await api.getForm(formId);
+      const res = await api.form.getForm(formId);
       return res.data as { data: FormDetail };
     },
   });
@@ -45,9 +45,10 @@ const FormShare: React.FC = () => {
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (data?.data.isPublic) {
-        return api.unpublishForm(formId);
+        // Note: unpublishForm and publishForm are not in the API, using updateForm instead
+        return api.form.updateForm(formId, { isPublished: false });
       }
-      return api.publishForm(formId);
+      return api.form.updateForm(formId, { isPublished: true });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['form', formId] });

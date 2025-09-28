@@ -34,7 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
-import api from '../../services/api';
+import { api } from '../../services/api';
 import { Form, Question } from '../../types';
 import { QuestionEditor } from '../../components/QuestionEditor';
 import { QuestionEditor } from '../../components/QuestionEditor';
@@ -238,7 +238,7 @@ export const FormEditor: React.FC = () => {
   const fetchForm = async () => {
     try {
       setLoading(true);
-      const response = await api.getForm(Number(id));
+      const response = await api.form.getForm(String(id));
       const formData = response.data;
       setForm(formData);
       setQuestions(formData.questions || []);
@@ -258,11 +258,11 @@ export const FormEditor: React.FC = () => {
     try {
       setSaving(true);
       if (id === 'new') {
-        const response = await api.createForm(data);
+        const response = await api.form.createForm(data);
         const newFormId = response.data.id;
         navigate(`/forms/${newFormId}/edit`);
       } else {
-        await api.updateForm(Number(id), data);
+        await api.form.updateForm(String(id), data);
         setForm({ ...form!, ...data });
       }
       alert('表單已儲存');

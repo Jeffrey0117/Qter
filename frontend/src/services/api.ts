@@ -158,3 +158,6 @@ export const api = {
   file: fileApi,
   public: publicApi,
 }
+
+// 導出 default 以相容舊的 import 方式
+export default api

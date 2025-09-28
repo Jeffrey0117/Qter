@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import api from '../../services/api';
+import { api, formApi } from '../../services/api';
 import { Form as QForm, Question } from '../../types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -152,7 +152,7 @@ const FileUpload: React.FC<{
   const uploadOne = async (localId: string, file: File) => {
     setItems((prev) => prev.map((i) => (i.localId === localId ? { ...i, status: 'uploading', progress: 0, error: undefined } : i)));
     try {
-      const res = await api.uploadFile(file, (p) => {
+      const res = await api.file.uploadFile(file, (p) => {
         setItems((prev) => prev.map((i) => (i.localId === localId ? { ...i, progress: p } : i)));
       });
       const data = res.data?.data ?? res.data; // backend returns {status,data:{...}}
@@ -218,7 +218,7 @@ const FileUpload: React.FC<{
                     <p className="text-xs text-red-600 mt-1">{it.error || '上傳失敗'}</p>
                   )}
                 </div>
-              </div&gt>
+              </div>
               <div className="flex items-center gap-2">
                 {it.status === 'error' && (
                   <Button size="sm" variant="outline" onClick={() => retry(it.localId)}>重試</Button>
@@ -252,12 +252,12 @@ const FormFill: React.FC = () => {
     queryFn: async () => {
       // Prefer backend public endpoint if available
       try {
-        const res = await api.request({ url: `/public/forms/${formId}`, method: 'GET' });
-        return (res.data?.data?.form ?? res.data) as QForm;
+        const res = await formApi.getForm(String(formId));
+        return res as QForm;
       } catch {
-        // Fallback to authenticated getForm (in case public route not wired); may fail if not logged in
-        const res = await api.getForm(formId);
-        return (res.data?.data?.form ?? res.data) as QForm;
+        // Fallback for public forms
+        const res = await formApi.getForm(String(formId));
+        return res as QForm;
       }
     },
   });
@@ -314,7 +314,7 @@ const FormFill: React.FC = () => {
 
   const { mutateAsync: submitMutation, isLoading: submitting } = useMutation({
     mutationFn: async (payload: any) => {
-      return api.submitResponse(formId, payload);
+      return formApi.submitResponse(String(formId), payload);
     },
   });
 
