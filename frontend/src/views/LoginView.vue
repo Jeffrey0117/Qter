@@ -96,7 +96,6 @@ onMounted(() => {
       {
         theme: 'outline',
         size: 'large',
-        width: '100%',
         text: 'signin_with',
         locale: 'zh-TW'
       }
