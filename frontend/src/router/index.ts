@@ -6,6 +6,8 @@ import ResponsesView from '../views/ResponsesView.vue'
 import AllAtOnceView from '../views/AllAtOnceView.vue'
 import PublicFillView from '../views/PublicFillView.vue'
 import DemoSurveyView from '../views/DemoSurveyView.vue'
+import LoginView from '../views/LoginView.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,39 +15,74 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: HomeView,
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../views/DashboardView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/editor/:id',
       name: 'editor',
-      component: EditorView
+      component: EditorView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/fill/:id',
       name: 'fill',
-      component: FillView
+      component: FillView,
+      meta: { requiresAuth: false }
     },
     {
       path: '/fill/:id/all',
       name: 'fill-all',
-      component: AllAtOnceView
+      component: AllAtOnceView,
+      meta: { requiresAuth: false }
     },
     {
       path: '/s/:hash',
       name: 'public-fill',
-      component: PublicFillView
+      component: PublicFillView,
+      meta: { requiresAuth: false }
     },
     {
       path: '/demo',
       name: 'demo-survey',
-      component: DemoSurveyView
+      component: DemoSurveyView,
+      meta: { requiresAuth: false }
     },
     {
       path: '/responses/:id',
       name: 'responses',
-      component: ResponsesView
+      component: ResponsesView,
+      meta: { requiresAuth: true }
     }
   ],
+})
+
+// 路由守衛 - 檢查認證狀態
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  authStore.checkAuth()
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // 需要登入但未登入，導向登入頁
+    next('/login')
+  } else if (to.path === '/login' && authStore.isAuthenticated) {
+    // 已登入但訪問登入頁，導向儀表板
+    next('/dashboard')
+  } else {
+    next()
+  }
 })
 
 export default router
