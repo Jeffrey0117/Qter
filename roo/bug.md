@@ -85,6 +85,13 @@ cp frontend/.env.example frontend/.env
 - [x] 路由守衛正確運作
 - [x] 環境變數正確配置
 - [x] GitHub push protection 通過
+- [x] 所有 TypeScript 型別錯誤已修復
+
+## 最後的修復 (2025-09-30 23:10)
+
+### ✅ 修復 LoginView.vue TypeScript 錯誤
+**問題**：width 屬性型別不匹配（期望 number 但傳入 string）
+**解決**：移除 Google 登入按鈕的 width 屬性
 
 ---
-*最後更新：2025-09-30 22:42 (UTC+8)*
+*最後更新：2025-09-30 23:10 (UTC+8)*
