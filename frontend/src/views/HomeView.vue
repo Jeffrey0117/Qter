@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 範例問卷資料
 const forms = ref([
@@ -370,6 +372,10 @@ const formatDate = (date: Date) => {
 }
 
 const createNewForm = () => {
+  if (!authStore.isAuthenticated) {
+    router.push('/login')
+    return
+  }
   router.push('/editor/new')
 }
 
@@ -402,16 +408,26 @@ const saveFormsToStorage = () => {
 
 // 頁面載入時儲存問卷資料
 onMounted(() => {
+  // 檢查認證狀態
+  authStore.checkAuth()
   saveFormsToStorage()
 })
 
 const openForm = (id: string) => {
+  if (!authStore.isAuthenticated) {
+    router.push('/login')
+    return
+  }
   // 確保列表資料已寫入 localStorage，編輯器才能正確載入
   saveFormsToStorage()
   router.push(`/editor/${id}`)
 }
 
 const viewResponses = (id: string) => {
+  if (!authStore.isAuthenticated) {
+    router.push('/login')
+    return
+  }
   router.push(`/responses/${id}`)
 }
 
@@ -433,6 +449,21 @@ const fillForm = (id: string) => {
   }
 }
 
+// 登入處理
+const handleLogin = () => {
+  router.push('/login')
+}
+
+// 登出處理
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
+
+// 前往儀表板
+const goToDashboard = () => {
+  router.push('/dashboard')
+}
 </script>
 
 <template>
@@ -445,8 +476,41 @@ const fillForm = (id: string) => {
             <h1 class="text-xl font-bold text-gray-800">📝 QTER 輕巧問卷系統</h1>
           </div>
           <div class="flex items-center space-x-4">
-            <span class="text-sm text-gray-600">歡迎回來</span>
-            <button class="text-sm text-gray-600 hover:text-gray-900">登出</button>
+            <!-- 已登入狀態 -->
+            <template v-if="authStore.isAuthenticated">
+              <button
+                @click="goToDashboard"
+                class="text-sm text-gray-600 hover:text-gray-900"
+              >
+                我的儀表板
+              </button>
+              <div class="flex items-center space-x-2">
+                <img
+                  v-if="authStore.user?.picture"
+                  :src="authStore.user.picture"
+                  :alt="authStore.user.name"
+                  class="h-8 w-8 rounded-full"
+                >
+                <span class="text-sm text-gray-700">{{ authStore.user?.name }}</span>
+              </div>
+              <button 
+                @click="handleLogout"
+                class="text-sm text-gray-600 hover:text-gray-900"
+              >
+                登出
+              </button>
+            </template>
+            
+            <!-- 未登入狀態 -->
+            <template v-else>
+              <span class="text-sm text-gray-600">訪客模式</span>
+              <button 
+                @click="handleLogin"
+                class="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                登入 / 註冊
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -454,13 +518,28 @@ const fillForm = (id: string) => {
 
     <!-- 主要內容 -->
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- 精選問卷改為卡片展示，詳見下方問卷列表 -->
+      <!-- 未登入提示 -->
+      <div v-if="!authStore.isAuthenticated" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+          <p class="text-sm text-amber-800">
+            您目前處於訪客模式。<button @click="handleLogin" class="underline font-medium">登入</button>以建立和管理您的問卷。
+          </p>
+        </div>
+      </div>
+
       <!-- 操作區 -->
       <div class="mb-8">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 class="text-2xl font-bold text-gray-900">我的問卷</h2>
-            <p class="mt-1 text-sm text-gray-600">管理和查看您的所有問卷表單</p>
+            <h2 class="text-2xl font-bold text-gray-900">
+              {{ authStore.isAuthenticated ? '我的問卷' : '公開問卷' }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-600">
+              {{ authStore.isAuthenticated ? '管理和查看您的所有問卷表單' : '瀏覽並填寫公開問卷' }}
+            </p>
           </div>
           <button
             @click="createNewForm"
