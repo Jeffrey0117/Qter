@@ -80,7 +80,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 // 監看登入狀態，成功後導向儀表板
-watch(authStore.isAuthenticated, (authed) => {
+watch(() => authStore.isAuthenticated, (authed) => {
   console.debug('[LoginView] isAuthenticated changed =>', authed)
   if (authed) {
     try {
