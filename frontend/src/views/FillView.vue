@@ -77,8 +77,18 @@ const isLastQuestion = computed(() => {
 onMounted(() => {
   const formId = route.params.id
   if (formId) {
-    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-    const savedForm = savedForms.find((f: any) => f.id === formId)
+    let savedForm = null
+    
+    // 先嘗試從 demo 資料讀取
+    const demoData = localStorage.getItem(`qter_demo_${formId}`)
+    if (demoData) {
+      savedForm = JSON.parse(demoData)
+    } else {
+      // 否則從使用者問卷讀取
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      savedForm = savedForms.find((f: any) => f.id === formId)
+    }
+    
     if (savedForm) {
       form.value = savedForm
 
