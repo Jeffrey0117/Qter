@@ -769,18 +769,18 @@ const getQuestionTypeName = (type: QuestionType) => {
               @click="toggleEditorMode"
               :class="[
                 'px-4 py-2 text-sm rounded-lg transition-colors flex items-center gap-2',
-                editorMode === 'visual' 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                  : 'bg-purple-100 text-purple-700 border border-purple-200'
+                editorMode === 'visual'
+                  ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                  : 'bg-blue-100 text-blue-700 border border-blue-200'
               ]"
             >
               <svg v-if="editorMode === 'visual'" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-              </svg>
-              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
               </svg>
-              {{ editorMode === 'visual' ? '視覺編輯' : 'Markdown' }}
+              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+              </svg>
+              {{ editorMode === 'visual' ? 'Markdown' : '視覺編輯' }}
             </button>
             
             <button
