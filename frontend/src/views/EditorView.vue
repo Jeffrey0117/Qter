@@ -2,6 +2,8 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
+import { formApi } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 // 題目類型定義
 type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
@@ -41,6 +43,9 @@ const editorMode = ref<EditorMode>('visual')
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
+
+const syncStatus = ref<'synced' | 'syncing' | 'local' | 'error'>('local')
 
 // 表單資料
 const form = reactive<Form>({
@@ -63,6 +68,15 @@ watch(
     persistFormToLocalStorage()
   },
   { deep: false }
+)
+
+// 表單內容變更自動儲存
+watch(
+  () => [form.title, form.description, form.questions],
+  () => {
+    persistFormToLocalStorage()
+  },
+  { deep: true }
 )
 
  // Markdown 內容（示範含 style、Google Fonts、自訂卡片樣式與 HTML 標題）
@@ -517,9 +531,48 @@ const handleDragEnd = () => {
   draggedQuestion.value = null
 }
 
-/**
- * 即時持久化表單（不提示）
- */
+async function syncFormToDB() {
+  if (!authStore.isAuthenticated) {
+    syncStatus.value = 'local'
+    return false
+  }
+
+  try {
+    syncStatus.value = 'syncing'
+    
+    const formData = {
+      id: form.id,
+      title: form.title,
+      description: form.description,
+      questions: form.questions,
+      displayMode: form.displayMode,
+      markdownContent: editorMode.value === 'markdown'
+        ? markdownContent.value
+        : generateMarkdownFromForm(form),
+      autoAdvance: form.autoAdvance,
+      autoAdvanceDelay: form.autoAdvanceDelay,
+      showProgress: form.showProgress,
+      allowGoBack: form.allowGoBack,
+    }
+
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const existingLocal = savedForms.find((f: any) => f.id === form.id)
+
+    if (existingLocal) {
+      await formApi.updateForm(form.id, formData)
+    } else {
+      await formApi.createForm(formData)
+    }
+
+    syncStatus.value = 'synced'
+    return true
+  } catch (error) {
+    console.error('DB sync failed:', error)
+    syncStatus.value = 'error'
+    return false
+  }
+}
+
 function persistFormToLocalStorage() {
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
@@ -538,17 +591,15 @@ function persistFormToLocalStorage() {
   }
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+  
+  syncFormToDB().catch(() => {})
 }
 
-// 儲存表單（顯示提示）
-const saveForm = () => {
-  // 若在 Markdown 模式，先解析 Markdown 並同步至視覺資料，確保儲存與預覽一致
+const saveForm = async () => {
   if (editorMode.value === 'markdown') {
     const parsed = parseMarkdownToForm(markdownContent.value)
-    // 保留 id 與展示、互動設定
     parsed.id = form.id
     parsed.displayMode = form.displayMode
-    // 僅在 Markdown 有提供內容時才覆蓋，避免清空現有資料
     if (parsed.title && parsed.title !== '未命名問卷') {
       form.title = parsed.title
     }
@@ -561,7 +612,15 @@ const saveForm = () => {
   }
 
   persistFormToLocalStorage()
-  alert('問卷已儲存！')
+  
+  const synced = await syncFormToDB()
+  if (synced) {
+    alert('問卷已儲存並同步至雲端！')
+  } else if (!authStore.isAuthenticated) {
+    alert('問卷已儲存至本地（請登入以同步至雲端）')
+  } else {
+    alert('問卷已儲存至本地，雲端同步失敗')
+  }
 }
 
 /**
