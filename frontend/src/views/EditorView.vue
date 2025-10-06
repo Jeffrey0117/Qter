@@ -709,9 +709,9 @@ const previewForm = () => {
   }
 }
 
-// 返回首頁
+// 返回儀表板
 const goBack = () => {
-  router.push('/')
+  router.push('/dashboard')
 }
 
  // 載入表單資料
