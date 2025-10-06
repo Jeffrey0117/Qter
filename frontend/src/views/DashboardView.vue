@@ -185,12 +185,19 @@ onMounted(() => {
 })
 
 const loadForms = () => {
-  // TODO: 從 API 載入用戶的問卷
-  const storedData = localStorage.getItem('formData')
+  const storedData = localStorage.getItem('qter_forms')
   if (storedData) {
-    const data = JSON.parse(storedData)
-    if (Array.isArray(data)) {
-      forms.value = data
+    try {
+      const allForms = JSON.parse(storedData)
+      if (Array.isArray(allForms)) {
+        forms.value = allForms.filter(f => {
+          const isDemoForm = ['featured-2025', '1', '2', '3'].includes(f.id)
+          return !isDemoForm
+        })
+      }
+    } catch (e) {
+      console.error('載入問卷失敗', e)
+      forms.value = []
     }
   }
 }
@@ -219,7 +226,10 @@ const shareForm = (id: string) => {
 const deleteForm = (id: string) => {
   if (confirm('確定要刪除這份問卷嗎？')) {
     forms.value = forms.value.filter(f => f.id !== id)
-    // TODO: 呼叫 API 刪除問卷
+    
+    const allForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const updatedForms = allForms.filter((f: any) => f.id !== id)
+    localStorage.setItem('qter_forms', JSON.stringify(updatedForms))
   }
 }
 

@@ -80,6 +80,9 @@ router.beforeEach((to, from, next) => {
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     // 已登入但訪問登入頁，導向儀表板
     next('/dashboard')
+  } else if (to.path === '/' && authStore.isAuthenticated) {
+    // 已登入訪問首頁，導向儀表板
+    next('/dashboard')
   } else {
     next()
   }

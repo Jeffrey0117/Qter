@@ -16,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const googleInitialized = ref(false)
 
   // 計算屬性
   const isAuthenticated = computed(() => !!token.value && !!user.value)
@@ -25,26 +26,40 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   // 方法
-  const initGoogleAuth = () => {
-    if (typeof google === 'undefined') {
-      console.error('Google Identity Services not loaded')
-      return
-    }
+  const initGoogleAuth = async () => {
+    try {
+      isLoading.value = true
+      await waitForGoogle()
 
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleResponse
-    })
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse,
+        auto_select: false,
+        ux_mode: 'popup',
+      })
+
+      googleInitialized.value = true
+    } catch (e) {
+      console.error('Google Identity Services not loaded', e)
+      error.value = '無法載入 Google 登入，請重試'
+    } finally {
+      isLoading.value = false
+    }
   }
 
   const handleGoogleResponse = async (response: any) => {
     try {
       isLoading.value = true
       error.value = null
+      console.debug('[Auth] Google callback received', { hasCredential: !!response?.credential })
 
       // 解碼 JWT token 獲取用戶資訊
       const credential = response.credential
       const payload = decodeJWT(credential)
+      console.debug('[Auth] Decoded payload', { sub: payload.sub, email: payload.email, name: payload.name })
+      if (!payload?.email || !payload?.sub) {
+        console.warn('[Auth] Payload missing fields, will still proceed but redirect may be blocked by guard')
+      }
       
       // 設定用戶資料
       user.value = {
@@ -59,6 +74,17 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = credential
       localStorage.setItem('auth_token', credential)
       localStorage.setItem('user', JSON.stringify(user.value))
+
+      // 確認認證狀態，並做保險導向（避免 watch 沒觸發）
+      console.debug('[Auth] State set, isAuthenticated =', isAuthenticated.value)
+      if (isAuthenticated.value) {
+        // 若使用 One Tap，避免自動再次彈出
+        if (typeof google !== 'undefined') {
+          try { google.accounts.id.disableAutoSelect() } catch {}
+        }
+        // 硬導向，確保能離開登入頁
+        window.location.assign('/dashboard')
+      }
       
     } catch (e) {
       error.value = '登入失敗，請稍後再試'
@@ -68,14 +94,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const login = () => {
-    if (typeof google === 'undefined') {
+  const login = async () => {
+    try {
+      await initGoogleAuth()
+      google.accounts.id.prompt()
+    } catch (e) {
       console.error('Google Identity Services not loaded')
-      return
     }
-
-    // 顯示 Google 登入按鈕
-    google.accounts.id.prompt()
   }
 
   const logout = () => {
@@ -112,6 +137,23 @@ export const useAuthStore = defineStore('auth', () => {
         .join('')
     )
     return JSON.parse(jsonPayload)
+  }
+
+  // 等待 Google GSI 載入
+  const waitForGoogle = (maxWait = 8000, interval = 50): Promise<void> => {
+    if (typeof google !== 'undefined' && google?.accounts?.id) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const start = Date.now()
+      const timer = setInterval(() => {
+        if (typeof google !== 'undefined' && google?.accounts?.id) {
+          clearInterval(timer)
+          resolve()
+        } else if (Date.now() - start > maxWait) {
+          clearInterval(timer)
+          reject(new Error('Google GSI script not ready'))
+        }
+      }, interval)
+    })
   }
 
   return {

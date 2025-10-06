@@ -72,23 +72,34 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
+// 監看登入狀態，成功後導向儀表板
+watch(authStore.isAuthenticated, (authed) => {
+  console.debug('[LoginView] isAuthenticated changed =>', authed)
+  if (authed) {
+    try {
+      router.push('/dashboard')
+    } catch {}
+  }
+})
+
 // 檢查是否已登入
-onMounted(() => {
+onMounted(async () => {
   authStore.checkAuth()
   if (authStore.isAuthenticated) {
     router.push('/dashboard')
+    return
   }
-  
-  // 初始化 Google 登入
-  authStore.initGoogleAuth()
-  
+
+  // 初始化 Google 登入（等待腳本載入）
+  await authStore.initGoogleAuth()
+
   // 渲染 Google 登入按鈕
   if (typeof google !== 'undefined') {
     google.accounts.id.renderButton(
