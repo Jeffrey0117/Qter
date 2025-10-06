@@ -592,7 +592,9 @@ function persistFormToLocalStorage() {
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
   
-  syncFormToDB().catch(() => {})
+  syncFormToDB().catch((err) => {
+    console.error('❌ DB sync error:', err)
+  })
 }
 
 const saveForm = async () => {
