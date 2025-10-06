@@ -262,7 +262,167 @@ addRoute('POST', '/api/public/s/:hash/submit', async (req, env, _ctx, params) =>
   }
 })
 
-// Auth stubs (register/login) for later
+async function extractUserId(req: Request, env: Env): Promise<string | null> {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  
+  const token = authHeader.substring(7)
+  if (!token) return null
+  
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const payload = JSON.parse(jsonPayload)
+    
+    console.log('[Auth] Decoded payload:', { sub: payload.sub, email: payload.email })
+    return payload.sub || payload.user_id || payload.id || null
+  } catch (e) {
+    console.error('[Auth] Token decode failed:', e)
+    return null
+  }
+}
+
+addRoute('POST', '/api/forms', async (req, env) => {
+  const userId = await extractUserId(req, env)
+  if (!userId) return unauthorized()
+  
+  try {
+    const body = await req.json().catch(() => ({}))
+    if (!body.id || !body.title || !body.questions) {
+      return badRequest('missing_required_fields')
+    }
+    
+    const { id, title, description, questions, displayMode, markdownContent, autoAdvance, autoAdvanceDelay, showProgress, allowGoBack } = body
+    
+    const result = await env.DB.prepare(
+      `INSERT INTO forms (id, user_id, title, description, markdown_content, display_mode, questions, auto_advance, auto_advance_delay, show_progress, allow_go_back, created_at, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, datetime('now'), datetime('now'))`
+    ).bind(
+      id, userId, title, description || '', markdownContent || '', displayMode || 'step-by-step',
+      JSON.stringify(questions), autoAdvance !== false ? 1 : 0, autoAdvanceDelay || 300,
+      showProgress !== false ? 1 : 0, allowGoBack !== false ? 1 : 0
+    ).run()
+    
+    if (!result.success) return json({ error: 'create_failed' }, { status: 500 })
+    return json({ success: true, form: body })
+  } catch (e: any) {
+    return json({ error: 'create_error', detail: String(e?.message || e) }, { status: 500 })
+  }
+})
+
+addRoute('PUT', '/api/forms/:id', async (req, env, _ctx, params) => {
+  const userId = await extractUserId(req, env)
+  if (!userId) return unauthorized()
+  
+  try {
+    const formId = params.id
+    const existing = await env.DB.prepare('SELECT user_id FROM forms WHERE id = ?1').bind(formId).first<{ user_id: string }>()
+    if (!existing) return notFound()
+    if (existing.user_id !== userId) return unauthorized()
+    
+    const body = await req.json().catch(() => ({}))
+    const { title, description, questions, displayMode, markdownContent, autoAdvance, autoAdvanceDelay, showProgress, allowGoBack } = body
+    
+    const result = await env.DB.prepare(
+      `UPDATE forms SET
+       title = COALESCE(?2, title),
+       description = COALESCE(?3, description),
+       markdown_content = COALESCE(?4, markdown_content),
+       display_mode = COALESCE(?5, display_mode),
+       questions = COALESCE(?6, questions),
+       auto_advance = COALESCE(?7, auto_advance),
+       auto_advance_delay = COALESCE(?8, auto_advance_delay),
+       show_progress = COALESCE(?9, show_progress),
+       allow_go_back = COALESCE(?10, allow_go_back),
+       updated_at = datetime('now')
+       WHERE id = ?1`
+    ).bind(
+      formId, title, description, markdownContent, displayMode,
+      questions ? JSON.stringify(questions) : null,
+      autoAdvance !== undefined ? (autoAdvance ? 1 : 0) : null,
+      autoAdvanceDelay,
+      showProgress !== undefined ? (showProgress ? 1 : 0) : null,
+      allowGoBack !== undefined ? (allowGoBack ? 1 : 0) : null
+    ).run()
+    
+    if (!result.success) return json({ error: 'update_failed' }, { status: 500 })
+    return json({ success: true })
+  } catch (e: any) {
+    return json({ error: 'update_error', detail: String(e?.message || e) }, { status: 500 })
+  }
+})
+
+addRoute('GET', '/api/forms/:id', async (req, env, _ctx, params) => {
+  try {
+    const formId = params.id
+    const form = await env.DB.prepare(
+      `SELECT id, user_id, title, description, markdown_content as markdownContent, display_mode as displayMode,
+       questions, auto_advance as autoAdvance, auto_advance_delay as autoAdvanceDelay,
+       show_progress as showProgress, allow_go_back as allowGoBack, created_at as createdAt, updated_at as updatedAt
+       FROM forms WHERE id = ?1`
+    ).bind(formId).first<any>()
+    
+    if (!form) return notFound()
+    
+    if (form.questions) {
+      try {
+        form.questions = JSON.parse(form.questions)
+      } catch {}
+    }
+    form.autoAdvance = form.autoAdvance === 1
+    form.showProgress = form.showProgress === 1
+    form.allowGoBack = form.allowGoBack === 1
+    
+    return json({ success: true, form })
+  } catch (e: any) {
+    return json({ error: 'get_error', detail: String(e?.message || e) }, { status: 500 })
+  }
+})
+
+addRoute('GET', '/api/forms', async (req, env) => {
+  const userId = await extractUserId(req, env)
+  if (!userId) return unauthorized()
+  
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT id, title, description, display_mode as displayMode, created_at as createdAt, updated_at as updatedAt
+       FROM forms WHERE user_id = ?1 ORDER BY updated_at DESC`
+    ).bind(userId).all()
+    
+    return json({ success: true, forms: results || [] })
+  } catch (e: any) {
+    return json({ error: 'list_error', detail: String(e?.message || e) }, { status: 500 })
+  }
+})
+
+addRoute('DELETE', '/api/forms/:id', async (req, env, _ctx, params) => {
+  const userId = await extractUserId(req, env)
+  if (!userId) return unauthorized()
+  
+  try {
+    const formId = params.id
+    const existing = await env.DB.prepare('SELECT user_id FROM forms WHERE id = ?1').bind(formId).first<{ user_id: string }>()
+    if (!existing) return notFound()
+    if (existing.user_id !== userId) return unauthorized()
+    
+    const result = await env.DB.prepare('DELETE FROM forms WHERE id = ?1').bind(formId).run()
+    if (!result.success) return json({ error: 'delete_failed' }, { status: 500 })
+    
+    return json({ success: true })
+  } catch (e: any) {
+    return json({ error: 'delete_error', detail: String(e?.message || e) }, { status: 500 })
+  }
+})
+
 addRoute('POST', '/api/auth/register', async () => json({ ok: true, message: 'register stub' }))
 addRoute('POST', '/api/auth/login', async () => json({ ok: true, token: 'stub' }))
 
