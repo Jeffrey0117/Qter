@@ -1,6 +1,6 @@
 // 類型定義
 
-export type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'date' | 'file' | 'divider'
+export type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
 
 export type DisplayMode = 'step-by-step' | 'all-at-once'
 
