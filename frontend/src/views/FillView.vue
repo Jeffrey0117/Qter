@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
-import { api } from '@/services/api'
+import { api, formApi } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -73,43 +73,47 @@ const isLastQuestion = computed(() => {
   return currentQuestionIndex.value === form.value.questions.length - 1
 })
 
-// 載入表單
-onMounted(() => {
+onMounted(async () => {
   const formId = route.params.id
   if (formId) {
     let savedForm = null
     
-    // 先嘗試從 demo 資料讀取
     const demoData = localStorage.getItem(`qter_demo_${formId}`)
     if (demoData) {
       savedForm = JSON.parse(demoData)
     } else {
-      // 否則從使用者問卷讀取
-      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-      savedForm = savedForms.find((f: any) => f.id === formId)
+      try {
+        const response = await formApi.getForm(formId as string)
+        if (response.success && response.form) {
+          savedForm = response.form
+        }
+      } catch (error) {
+        console.error('DB fetch failed, fallback to localStorage:', error)
+      }
+      
+      if (!savedForm) {
+        const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+        savedForm = savedForms.find((f: any) => f.id === formId)
+      }
     }
     
     if (savedForm) {
       form.value = savedForm
 
-      // 預設值與向後相容
       if (form.value && typeof form.value.autoAdvance === 'undefined') form.value.autoAdvance = true
       if (form.value && typeof form.value.autoAdvanceDelay === 'undefined') form.value.autoAdvanceDelay = 300
       if (form.value && typeof form.value.showProgress === 'undefined') form.value.showProgress = true
       if (form.value && typeof form.value.allowGoBack === 'undefined') form.value.allowGoBack = true
 
-      // 套用 Markdown 內宣告的樣式與字體（若有）
       if (typeof savedForm.markdownContent === 'string') {
         buildAndApplyMarkdown(savedForm.markdownContent, `qter-style-${savedForm.id}`, `form-${savedForm.id}`)
       }
 
-      // 若為全頁模式，導向全頁填答路由
       if (savedForm.displayMode === 'all-at-once') {
         router.replace(`/fill/${savedForm.id}/all`)
         return
       }
 
-      // 載入暫存的答案
       const savedResponses = localStorage.getItem(`qter_response_${formId}`)
       if (savedResponses) {
         const parsed = JSON.parse(savedResponses)

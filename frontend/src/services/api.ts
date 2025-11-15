@@ -1,153 +1,410 @@
-// API 服務層
+// API 服務層 - 使用 Supabase
+import { supabase } from '../lib/supabase'
 import type { Form } from '../types'
 
-// API 基礎配置
-// 建議在 .env.local 設定 VITE_API_BASE_URL，例如：
-// - 開發 Workers: http://localhost:8787
-// - 反向代理路由: /api
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
-
-// 通用 API 請求函數（fetch 版）
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
-
-  const config: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    ...options,
-  }
-
-  // 添加認證 token（如果有的話）
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    config.headers = {
-      ...(config.headers || {}),
-      Authorization: `Bearer ${token}`,
-    }
-  }
-
-  try {
-    const response = await fetch(url, config)
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error('API Request failed:', error)
-    throw error
-  }
-}
-
-// 表單相關 API
 export const formApi = {
-  // 獲取所有表單
-  async getForms(): Promise<Form[]> {
-    return apiRequest('/forms')
+  async getForms(): Promise<{ success: boolean; forms: Form[] }> {
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      if (!session?.session?.user) {
+        throw new Error('User not authenticated')
+      }
+
+      const { data, error } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('user_id', session.session.user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      // 轉換資料庫欄位名稱到前端格式
+      const forms = (data || []).map((form: any) => ({
+        id: form.id,
+        userId: form.user_id,
+        title: form.title,
+        description: form.description,
+        questions: form.questions,
+        displayMode: form.display_mode,
+        markdownContent: form.markdown_content,
+        autoAdvance: form.auto_advance,
+        autoAdvanceDelay: form.auto_advance_delay,
+        showProgress: form.show_progress,
+        allowGoBack: form.allow_go_back,
+        shareHash: form.share_hash,
+        createdAt: form.created_at,
+        updatedAt: form.updated_at,
+      }))
+
+      return { success: true, forms }
+    } catch (error) {
+      console.error('getForms error:', error)
+      throw error
+    }
   },
 
-  // 獲取單個表單
-  async getForm(id: string): Promise<Form> {
-    return apiRequest(`/forms/${id}`)
+  async getForm(id: string): Promise<{ success: boolean; form: Form }> {
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+
+      // 轉換資料庫欄位名稱到前端格式
+      const form = {
+        id: data.id,
+        userId: data.user_id,
+        title: data.title,
+        description: data.description,
+        questions: data.questions,
+        displayMode: data.display_mode,
+        markdownContent: data.markdown_content,
+        autoAdvance: data.auto_advance,
+        autoAdvanceDelay: data.auto_advance_delay,
+        showProgress: data.show_progress,
+        allowGoBack: data.allow_go_back,
+        shareHash: data.share_hash,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      }
+
+      return { success: true, form }
+    } catch (error) {
+      console.error('getForm error:', error)
+      throw error
+    }
   },
 
-  // 創建表單
-  async createForm(form: Omit<Form, 'id'>): Promise<Form> {
-    return apiRequest('/forms', {
-      method: 'POST',
-      body: JSON.stringify(form),
-    })
+  async createForm(data: {
+    id: string
+    title: string
+    description?: string
+    questions: any[]
+    displayMode?: string
+    markdownContent?: string
+    autoAdvance?: boolean
+    autoAdvanceDelay?: number
+    showProgress?: boolean
+    allowGoBack?: boolean
+  }): Promise<{ success: boolean; form: any }> {
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      if (!session?.session?.user) {
+        throw new Error('User not authenticated')
+      }
+
+      // 轉換前端格式到資料庫欄位名稱
+      const insertData = {
+        id: data.id,
+        user_id: session.session.user.id,
+        title: data.title,
+        description: data.description || null,
+        questions: data.questions,
+        display_mode: data.displayMode || 'classic',
+        markdown_content: data.markdownContent || null,
+        auto_advance: data.autoAdvance ?? false,
+        auto_advance_delay: data.autoAdvanceDelay ?? 3,
+        show_progress: data.showProgress ?? true,
+        allow_go_back: data.allowGoBack ?? true,
+      }
+
+      const { data: result, error } = await supabase
+        .from('forms')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      return { success: true, form: result }
+    } catch (error) {
+      console.error('createForm error:', error)
+      throw error
+    }
   },
 
-  // 更新表單
-  async updateForm(id: string, form: Partial<Form>): Promise<Form> {
-    return apiRequest(`/forms/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(form),
-    })
+  async updateForm(id: string, data: {
+    title?: string
+    description?: string
+    questions?: any[]
+    displayMode?: string
+    markdownContent?: string
+    autoAdvance?: boolean
+    autoAdvanceDelay?: number
+    showProgress?: boolean
+    allowGoBack?: boolean
+  }): Promise<{ success: boolean }> {
+    try {
+      // 轉換前端格式到資料庫欄位名稱
+      const updateData: any = {}
+      if (data.title !== undefined) updateData.title = data.title
+      if (data.description !== undefined) updateData.description = data.description
+      if (data.questions !== undefined) updateData.questions = data.questions
+      if (data.displayMode !== undefined) updateData.display_mode = data.displayMode
+      if (data.markdownContent !== undefined) updateData.markdown_content = data.markdownContent
+      if (data.autoAdvance !== undefined) updateData.auto_advance = data.autoAdvance
+      if (data.autoAdvanceDelay !== undefined) updateData.auto_advance_delay = data.autoAdvanceDelay
+      if (data.showProgress !== undefined) updateData.show_progress = data.showProgress
+      if (data.allowGoBack !== undefined) updateData.allow_go_back = data.allowGoBack
+      updateData.updated_at = new Date().toISOString()
+
+      const { error } = await supabase
+        .from('forms')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      return { success: true }
+    } catch (error) {
+      console.error('updateForm error:', error)
+      throw error
+    }
   },
 
-  // 刪除表單
-  async deleteForm(id: string): Promise<void> {
-    return apiRequest(`/forms/${id}`, {
-      method: 'DELETE',
-    })
+  async deleteForm(id: string): Promise<{ success: boolean }> {
+    try {
+      const { error } = await supabase
+        .from('forms')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      return { success: true }
+    } catch (error) {
+      console.error('deleteForm error:', error)
+      throw error
+    }
   },
 
-  // 提交表單回應（私有 API，日後保留）
   async submitResponse(formId: string, responses: Record<string, any>): Promise<any> {
-    return apiRequest(`/forms/${formId}/responses`, {
-      method: 'POST',
-      body: JSON.stringify({ responses }),
-    })
+    try {
+      const { data: session } = await supabase.auth.getSession()
+
+      const insertData = {
+        form_id: formId,
+        user_id: session?.session?.user?.id || null,
+        responses: responses,
+      }
+
+      const { data, error } = await supabase
+        .from('responses')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      return { success: true, response: data }
+    } catch (error) {
+      console.error('submitResponse error:', error)
+      throw error
+    }
   },
 
-  // 獲取表單回應
   async getResponses(formId: string): Promise<any[]> {
-    return apiRequest(`/forms/${formId}/responses`)
+    try {
+      const { data, error } = await supabase
+        .from('responses')
+        .select('*')
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      return data || []
+    } catch (error) {
+      console.error('getResponses error:', error)
+      throw error
+    }
   },
 }
 
-// 認證相關 API
+// 認證相關 API - 使用 Supabase Auth
 export const authApi = {
-  // 登入
-  async login(email: string, password: string): Promise<{ token: string; user: any }> {
-    return apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+  // 使用 Google OAuth 登入
+  async loginWithGoogle(): Promise<void> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
+    if (error) throw error
+  },
+
+  // Email/Password 登入
+  async login(email: string, password: string): Promise<{ user: any; session: any }> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (error) throw error
+    return { user: data.user, session: data.session }
   },
 
   // 註冊
-  async register(email: string, password: string, name: string): Promise<{ token: string; user: any }> {
-    return apiRequest('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+  async register(email: string, password: string, metadata?: { name?: string }): Promise<{ user: any; session: any }> {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata,
+      },
     })
+    if (error) throw error
+    return { user: data.user, session: data.session }
+  },
+
+  // 登出
+  async logout(): Promise<void> {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
   },
 
   // 獲取當前用戶
   async getCurrentUser(): Promise<any> {
-    return apiRequest('/auth/me')
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error) throw error
+    return user
+  },
+
+  // 獲取當前 Session
+  async getSession(): Promise<any> {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error) throw error
+    return session
   },
 }
 
-// 公開填寫（Cloudflare Workers）API
+// 公開填寫 API - 使用 Supabase
 export const publicApi = {
   // 以分享哈希取得公開表單
   async getFormByHash(hash: string): Promise<any> {
-    return apiRequest(`/public/s/${hash}`)
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('*')
+        .eq('share_hash', hash)
+        .single()
+
+      if (error) throw error
+
+      // 轉換資料庫欄位名稱到前端格式
+      const form = {
+        id: data.id,
+        userId: data.user_id,
+        title: data.title,
+        description: data.description,
+        questions: data.questions,
+        displayMode: data.display_mode,
+        markdownContent: data.markdown_content,
+        autoAdvance: data.auto_advance,
+        autoAdvanceDelay: data.auto_advance_delay,
+        showProgress: data.show_progress,
+        allowGoBack: data.allow_go_back,
+        shareHash: data.share_hash,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      }
+
+      return { success: true, form }
+    } catch (error) {
+      console.error('getFormByHash error:', error)
+      throw error
+    }
   },
-  // 提交公開回覆（可附帶 Turnstile token）
+
+  // 提交公開回覆
   async submitByHash(hash: string, payload: { responses: Record<string, any>; turnstileToken?: string }): Promise<any> {
-    return apiRequest(`/public/s/${hash}/submit`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    try {
+      // 先取得表單 ID
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('share_hash', hash)
+        .single()
+
+      if (formError) throw formError
+
+      // 提交回覆
+      const insertData = {
+        form_id: formData.id,
+        user_id: null, // 公開提交沒有用戶 ID
+        responses: payload.responses,
+      }
+
+      const { data, error } = await supabase
+        .from('responses')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      return { success: true, response: data }
+    } catch (error) {
+      console.error('submitByHash error:', error)
+      throw error
+    }
   },
 }
 
-// 檔案上傳 API（占位，後端可另行實作）
+// 檔案上傳 API - 使用 Supabase Storage
 export const fileApi = {
-  // 上傳檔案
-  async uploadFile(file: File): Promise<{ url: string; filename: string }> {
-    const formData = new FormData()
-    formData.append('file', file)
+  // 上傳檔案到 Supabase Storage
+  async uploadFile(file: File, bucket: string = 'uploads'): Promise<{ url: string; filename: string; path: string }> {
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      if (!session?.session?.user) {
+        throw new Error('User not authenticated')
+      }
 
-    const response = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
-      },
-    })
+      // 生成唯一檔案名稱
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${session.session.user.id}/${Date.now()}.${fileExt}`
 
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`)
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (error) throw error
+
+      // 取得公開 URL
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path)
+
+      return {
+        url: publicUrl,
+        filename: file.name,
+        path: data.path,
+      }
+    } catch (error) {
+      console.error('uploadFile error:', error)
+      throw error
     }
+  },
 
-    return response.json()
+  // 刪除檔案
+  async deleteFile(path: string, bucket: string = 'uploads'): Promise<void> {
+    try {
+      const { error } = await supabase.storage
+        .from(bucket)
+        .remove([path])
+
+      if (error) throw error
+    } catch (error) {
+      console.error('deleteFile error:', error)
+      throw error
+    }
   },
 }
 

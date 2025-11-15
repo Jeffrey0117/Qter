@@ -170,6 +170,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { formApi } from '@/services/api'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -184,20 +185,30 @@ onMounted(() => {
   loadForms()
 })
 
-const loadForms = () => {
+const loadForms = async () => {
+  try {
+    const response = await formApi.getForms()
+    if (response.success && Array.isArray(response.forms)) {
+      forms.value = response.forms
+    }
+  } catch (error) {
+    console.error('從資料庫載入問卷失敗:', error)
+  }
+  
   const storedData = localStorage.getItem('qter_forms')
   if (storedData) {
     try {
-      const allForms = JSON.parse(storedData)
-      if (Array.isArray(allForms)) {
-        forms.value = allForms.filter(f => {
+      const localForms = JSON.parse(storedData)
+      if (Array.isArray(localForms)) {
+        const filtered = localForms.filter(f => {
           const isDemoForm = ['featured-2025', '1', '2', '3'].includes(f.id)
-          return !isDemoForm
+          const alreadyInDB = forms.value.some(dbForm => dbForm.id === f.id)
+          return !isDemoForm && !alreadyInDB
         })
+        forms.value = [...forms.value, ...filtered]
       }
     } catch (e) {
-      console.error('載入問卷失敗', e)
-      forms.value = []
+      console.error('載入本地問卷失敗', e)
     }
   }
 }
@@ -223,8 +234,14 @@ const shareForm = (id: string) => {
   alert('分享連結已複製到剪貼簿！')
 }
 
-const deleteForm = (id: string) => {
+const deleteForm = async (id: string) => {
   if (confirm('確定要刪除這份問卷嗎？')) {
+    try {
+      await formApi.deleteForm(id)
+    } catch (error) {
+      console.error('從資料庫刪除問卷失敗:', error)
+    }
+    
     forms.value = forms.value.filter(f => f.id !== id)
     
     const allForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')

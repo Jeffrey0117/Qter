@@ -69,7 +69,7 @@ const router = createRouter({
   ],
 })
 
-// 路由守衛 - 檢查認證狀態
+ // 路由守衛 - 檢查認證狀態
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   authStore.checkAuth()
@@ -79,6 +79,9 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     // 已登入但訪問登入頁，導向儀表板
+    next('/dashboard')
+  } else if (to.path === '/' && authStore.isAuthenticated) {
+    // 已登入訪問首頁時，導向儀表板
     next('/dashboard')
   } else {
     next()

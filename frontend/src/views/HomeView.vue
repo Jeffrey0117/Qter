@@ -259,11 +259,17 @@ const goToDashboard = () => {
             </template>
             
             <template v-else>
-              <button 
+              <button
                 @click="handleLogin"
                 class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 登入 / 註冊
+              </button>
+              <button
+                @click="router.push('/demo')"
+                class="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                體驗範例
               </button>
             </template>
           </div>
