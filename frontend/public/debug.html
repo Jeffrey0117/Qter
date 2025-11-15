@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QTER Debug - 環境檢查</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+    .ok { color: #4ade80; }
+    .error { color: #f87171; }
+    .warn { color: #fbbf24; }
+    h1 { color: #60a5fa; }
+    pre { background: #2d2d2d; padding: 15px; border-radius: 5px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔍 QTER 環境診斷</h1>
+  <div id="result"></div>
+
+  <script type="module">
+    const result = document.getElementById('result')
+
+    function log(msg, type = 'ok') {
+      result.innerHTML += `<div class="${type}">${msg}</div>`
+    }
+
+    // 檢查環境變數
+    log('<h2>1. 環境變數檢查</h2>')
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    if (supabaseUrl) {
+      log(`✅ VITE_SUPABASE_URL = ${supabaseUrl}`, 'ok')
+    } else {
+      log(`❌ VITE_SUPABASE_URL 未設定！`, 'error')
+      log(`   請在 Vercel 設定：VITE_SUPABASE_URL=https://ihhucjcbhyakrenmpryh.supabase.co`, 'warn')
+    }
+
+    if (supabaseKey) {
+      log(`✅ VITE_SUPABASE_ANON_KEY = ${supabaseKey.substring(0, 20)}...`, 'ok')
+    } else {
+      log(`❌ VITE_SUPABASE_ANON_KEY 未設定！`, 'error')
+      log(`   請在 Vercel 設定環境變數`, 'warn')
+    }
+
+    // 測試 Supabase 連接
+    log('<h2>2. Supabase 連接測試</h2>')
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const testUrl = `${supabaseUrl}/rest/v1/forms?limit=1`
+        const response = await fetch(testUrl, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          log(`✅ Supabase 連接成功！`, 'ok')
+          log(`   找到 ${data.length} 個問卷`, 'ok')
+        } else {
+          log(`❌ Supabase 連接失敗：${response.status} ${response.statusText}`, 'error')
+          const text = await response.text()
+          log(`<pre>${text}</pre>`, 'error')
+        }
+      } catch (e) {
+        log(`❌ 連接錯誤：${e.message}`, 'error')
+      }
+    } else {
+      log(`⚠️  跳過測試（環境變數未設定）`, 'warn')
+    }
+
+    // 檢查當前部署
+    log('<h2>3. 部署資訊</h2>')
+    log(`當前 URL: ${window.location.href}`)
+    log(`User Agent: ${navigator.userAgent}`)
+
+    // 給出修復指示
+    log('<h2>✅ 修復步驟</h2>')
+    log('<pre>' +
+`1. 前往 Vercel Dashboard
+   https://vercel.com/dashboard
+
+2. 選擇專案 → Settings → Environment Variables
+
+3. 新增兩個變數（複製貼上）：
+
+   VITE_SUPABASE_URL=https://ihhucjcbhyakrenmpryh.supabase.co
+
+   VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloaHVjamNiaHlha3Jlbm1wcnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMTk5MjksImV4cCI6MjA3ODc5NTkyOX0.lLn455Jg5iiW9JhfWS-nr__Np-z6H8lVHn4eI95rVUg
+
+4. Environment 選 Production
+
+5. Save
+
+6. Deployments → Redeploy 最新的部署
+
+7. 等待部署完成（1-2分鐘）
+
+8. 重新訪問這個頁面檢查
+` + '</pre>')
+  </script>
+</body>
+</html>

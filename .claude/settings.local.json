@@ -9,7 +9,8 @@
       "Bash(git push)",
       "Bash(npm run type-check:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfix: 完整修復 TypeScript 類型系統\n\n- 更新 database.ts 添加缺失的 updated_at 欄位\n- 為所有 Supabase 查詢添加明確的泛型類型\n- 修復 share_links 和 responses 表的類型推斷\n- 添加 as any 類型斷言避免複雜類型問題\n- 確保所有 insert/update 操作有正確類型\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfix: 完整修復 TypeScript 類型系統\n\n- 更新 database.ts 添加缺失的 updated_at 欄位\n- 為所有 Supabase 查詢添加明確的泛型類型\n- 修復 share_links 和 responses 表的類型推斷\n- 添加 as any 類型斷言避免複雜類型問題\n- 確保所有 insert/update 操作有正確類型\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(npx supabase db remote commit:*)"
     ],
     "deny": [],
     "ask": []

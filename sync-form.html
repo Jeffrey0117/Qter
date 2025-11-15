@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>同步問卷到 Supabase</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; }
+    button {
+      background: #4F46E5;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover { background: #4338CA; }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .success { color: #22c55e; }
+    .error { color: #ef4444; }
+    .info { color: #3b82f6; }
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 同步問卷到 Supabase</h1>
+    <p>將本地 localStorage 的問卷同步到雲端資料庫</p>
+
+    <label>問卷 ID：</label>
+    <input type="text" id="formId" value="1763222836170" placeholder="輸入問卷 ID">
+
+    <button onclick="syncForm()">同步問卷到雲端</button>
+    <button onclick="clearLog()">清除日誌</button>
+
+    <div id="log"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://ihhucjcbhyakrenmpryh.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloaHVjamNiaHlha3Jlbm1wcnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMTk5MjksImV4cCI6MjA3ODc5NTkyOX0.lLn455Jg5iiW9JhfWS-nr__Np-z6H8lVHn4eI95rVUg'
+
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log')
+      const time = new Date().toLocaleTimeString('zh-TW', { hour12: false })
+      const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'
+      logDiv.innerHTML += `<div class="${className}">[${time}] ${message}</div>`
+      logDiv.scrollTop = logDiv.scrollHeight
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = ''
+    }
+
+    async function syncForm() {
+      const formId = document.getElementById('formId').value.trim()
+
+      if (!formId) {
+        log('❌ 請輸入問卷 ID', 'error')
+        return
+      }
+
+      clearLog()
+      log('🔍 開始尋找本地問卷...')
+
+      // 1. 從 localStorage 讀取問卷
+      const forms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      const targetForm = forms.find(f => f.id === formId)
+
+      if (!targetForm) {
+        log(`❌ 找不到問卷 ID: ${formId}`, 'error')
+        log('提示：請確認問卷 ID 正確，並在創建問卷的瀏覽器中執行此工具', 'info')
+        return
+      }
+
+      log(`✅ 找到問卷：${targetForm.title}`, 'success')
+      log(`📝 問題數量：${targetForm.questions?.length || 0}`)
+
+      try {
+        // 2. 同步到 Supabase forms 表
+        log('📤 正在同步到 Supabase...')
+
+        const formData = {
+          id: targetForm.id,
+          user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', // 使用測試用戶 ID
+          title: targetForm.title,
+          description: targetForm.description || '',
+          questions: targetForm.questions,
+          markdown_content: targetForm.markdownContent || '',
+          display_mode: targetForm.displayMode || 'step-by-step',
+          auto_advance: targetForm.autoAdvance ?? true,
+          auto_advance_delay: targetForm.autoAdvanceDelay ?? 300,
+          show_progress: targetForm.showProgress ?? true,
+          allow_go_back: targetForm.allowGoBack ?? true,
+          status: 'active'
+        }
+
+        const formResponse = await fetch(`${SUPABASE_URL}/rest/v1/forms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation,resolution=merge-duplicates'
+          },
+          body: JSON.stringify(formData)
+        })
+
+        if (!formResponse.ok) {
+          const errorText = await formResponse.text()
+          throw new Error(`表單同步失敗 (${formResponse.status}): ${errorText}`)
+        }
+
+        const formResult = await formResponse.json()
+        log('✅ 問卷已同步到資料庫！', 'success')
+        log(`   ID: ${formResult[0]?.id || formData.id}`)
+
+        // 3. 創建公開分享連結
+        log('🔗 正在創建分享連結...')
+
+        const hash = Math.random().toString(36).substring(2, 14)
+        const shareLinkData = {
+          form_id: targetForm.id,
+          hash: hash,
+          is_enabled: true,
+          allow_anonymous: true
+        }
+
+        const shareLinkResponse = await fetch(`${SUPABASE_URL}/rest/v1/share_links`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(shareLinkData)
+        })
+
+        if (!shareLinkResponse.ok) {
+          log('⚠️  分享連結創建失敗（問卷已同步成功）', 'info')
+        } else {
+          const shareLink = await shareLinkResponse.json()
+          log('✅ 分享連結已創建！', 'success')
+          log(`   Hash: ${shareLink[0]?.hash || hash}`)
+        }
+
+        // 4. 顯示訪問連結
+        log('', 'info')
+        log('🎉 同步完成！您可以使用以下連結訪問問卷：', 'success')
+        log(`   📋 直接連結：https://qter.vercel.app/fill/${formId}`, 'success')
+        log(`   🔗 分享連結：https://qter.vercel.app/s/${hash}`, 'success')
+        log('', 'info')
+        log('💡 提示：請到 Vercel 確保環境變數已設定', 'info')
+
+      } catch (error) {
+        log(`❌ 同步失敗：${error.message}`, 'error')
+        console.error('詳細錯誤：', error)
+      }
+    }
+
+    // 頁面載入時顯示提示
+    window.addEventListener('load', () => {
+      log('📱 工具已就緒！', 'success')
+      log('請確認問卷 ID 正確，然後點擊「同步問卷到雲端」', 'info')
+    })
+  </script>
+</body>
+</html>
