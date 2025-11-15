@@ -286,10 +286,24 @@ export const publicApi = {
   // 以分享哈希取得公開表單
   async getFormByHash(hash: string): Promise<any> {
     try {
+      // 通過 share_links 表查詢表單
+      const { data: shareLink, error: shareLinkError } = await supabase
+        .from('share_links')
+        .select('form_id, is_enabled, expire_at')
+        .eq('hash', hash)
+        .single()
+
+      if (shareLinkError) throw shareLinkError
+      if (!shareLink.is_enabled) throw new Error('Share link is disabled')
+      if (shareLink.expire_at && new Date(shareLink.expire_at) < new Date()) {
+        throw new Error('Share link has expired')
+      }
+
+      // 查詢表單詳情
       const { data, error } = await supabase
         .from('forms')
         .select('*')
-        .eq('share_hash', hash)
+        .eq('id', shareLink.form_id)
         .single()
 
       if (error) throw error
@@ -307,7 +321,6 @@ export const publicApi = {
         autoAdvanceDelay: data.auto_advance_delay,
         showProgress: data.show_progress,
         allowGoBack: data.allow_go_back,
-        shareHash: data.share_hash,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       }
@@ -322,31 +335,66 @@ export const publicApi = {
   // 提交公開回覆
   async submitByHash(hash: string, payload: { responses: Record<string, any>; turnstileToken?: string }): Promise<any> {
     try {
-      // 先取得表單 ID
-      const { data: formData, error: formError } = await supabase
-        .from('forms')
-        .select('id')
-        .eq('share_hash', hash)
+      // 查詢 share_link 和 form
+      const { data: shareLink, error: shareLinkError } = await supabase
+        .from('share_links')
+        .select('id, form_id, is_enabled')
+        .eq('hash', hash)
         .single()
 
-      if (formError) throw formError
+      if (shareLinkError) throw shareLinkError
+      if (!shareLink.is_enabled) throw new Error('Share link is disabled')
 
-      // 提交回覆
-      const insertData = {
-        form_id: formData.id,
-        user_id: null, // 公開提交沒有用戶 ID
-        responses: payload.responses,
-      }
-
-      const { data, error } = await supabase
+      // 創建 response 記錄
+      const { data: responseData, error: responseError } = await supabase
         .from('responses')
-        .insert(insertData)
+        .insert({
+          form_id: shareLink.form_id,
+          share_link_id: shareLink.id,
+          respondent_user_id: null,
+          meta_json: {
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString(),
+          },
+        })
         .select()
         .single()
 
-      if (error) throw error
+      if (responseError) throw responseError
 
-      return { success: true, response: data }
+      // 插入每個問題的回答到 response_items
+      const responseItems = Object.entries(payload.responses).map(([questionId, answer]) => {
+        let value_text = null
+        let value_number = null
+        let value_json = null
+
+        if (typeof answer === 'string') {
+          value_text = answer
+          const num = Number(answer)
+          if (!isNaN(num)) value_number = num
+        } else if (typeof answer === 'number') {
+          value_number = answer
+          value_text = String(answer)
+        } else {
+          value_json = answer
+        }
+
+        return {
+          response_id: responseData.id,
+          question_id: questionId,
+          value_text,
+          value_number,
+          value_json,
+        }
+      })
+
+      const { error: itemsError } = await supabase
+        .from('response_items')
+        .insert(responseItems)
+
+      if (itemsError) throw itemsError
+
+      return { success: true, responseId: responseData.id }
     } catch (error) {
       console.error('submitByHash error:', error)
       throw error

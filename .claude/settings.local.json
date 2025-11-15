@@ -5,7 +5,8 @@
       "Bash(npx wrangler d1 execute:*)",
       "Bash(npx wrangler:*)",
       "Bash(npm install:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
