@@ -1,6 +1,7 @@
 // API 服務層 - 使用 Supabase
 import { supabase } from '../lib/supabase'
 import type { Form } from '../types'
+import type { Database } from '../types/database'
 
 export const formApi = {
   async getForms(): Promise<{ success: boolean; forms: Form[] }> {
@@ -49,7 +50,7 @@ export const formApi = {
         .from('forms')
         .select('*')
         .eq('id', id)
-        .single()
+        .single<Database['public']['Tables']['forms']['Row']>()
 
       if (error) throw error
 
@@ -113,9 +114,9 @@ export const formApi = {
 
       const { data: result, error } = await supabase
         .from('forms')
-        .insert(insertData)
+        .insert(insertData as Database['public']['Tables']['forms']['Insert'])
         .select()
-        .single()
+        .single<Database['public']['Tables']['forms']['Row']>()
 
       if (error) throw error
 
@@ -153,7 +154,7 @@ export const formApi = {
 
       const { error } = await supabase
         .from('forms')
-        .update(updateData)
+        .update(updateData as Database['public']['Tables']['forms']['Update'])
         .eq('id', id)
 
       if (error) throw error
@@ -193,9 +194,9 @@ export const formApi = {
 
       const { data, error } = await supabase
         .from('responses')
-        .insert(insertData)
+        .insert(insertData as Database['public']['Tables']['responses']['Insert'])
         .select()
-        .single()
+        .single<Database['public']['Tables']['responses']['Row']>()
 
       if (error) throw error
 
@@ -291,7 +292,7 @@ export const publicApi = {
         .from('share_links')
         .select('form_id, is_enabled, expire_at')
         .eq('hash', hash)
-        .single()
+        .single<Database['public']['Tables']['share_links']['Row']>()
 
       if (shareLinkError) throw shareLinkError
       if (!shareLink.is_enabled) throw new Error('Share link is disabled')
@@ -304,7 +305,7 @@ export const publicApi = {
         .from('forms')
         .select('*')
         .eq('id', shareLink.form_id)
-        .single()
+        .single<Database['public']['Tables']['forms']['Row']>()
 
       if (error) throw error
 
@@ -340,7 +341,7 @@ export const publicApi = {
         .from('share_links')
         .select('id, form_id, is_enabled')
         .eq('hash', hash)
-        .single()
+        .single<Database['public']['Tables']['share_links']['Row']>()
 
       if (shareLinkError) throw shareLinkError
       if (!shareLink.is_enabled) throw new Error('Share link is disabled')
@@ -356,14 +357,14 @@ export const publicApi = {
             userAgent: navigator.userAgent,
             timestamp: new Date().toISOString(),
           },
-        })
+        } as Database['public']['Tables']['responses']['Insert'])
         .select()
-        .single()
+        .single<Database['public']['Tables']['responses']['Row']>()
 
       if (responseError) throw responseError
 
       // 插入每個問題的回答到 response_items
-      const responseItems = Object.entries(payload.responses).map(([questionId, answer]) => {
+      const responseItems: Database['public']['Tables']['response_items']['Insert'][] = Object.entries(payload.responses).map(([questionId, answer]) => {
         let value_text = null
         let value_number = null
         let value_json = null

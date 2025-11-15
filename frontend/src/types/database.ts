@@ -82,6 +82,7 @@ export interface Database {
           expire_at: string | null
           max_responses: number | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -92,6 +93,7 @@ export interface Database {
           expire_at?: string | null
           max_responses?: number | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -102,6 +104,7 @@ export interface Database {
           expire_at?: string | null
           max_responses?: number | null
           created_at?: string
+          updated_at?: string
         }
       }
       responses: {
@@ -113,6 +116,8 @@ export interface Database {
           respondent_hash: string | null
           submitted_at: string
           meta_json: Json | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -122,6 +127,8 @@ export interface Database {
           respondent_hash?: string | null
           submitted_at?: string
           meta_json?: Json | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -131,6 +138,8 @@ export interface Database {
           respondent_hash?: string | null
           submitted_at?: string
           meta_json?: Json | null
+          created_at?: string
+          updated_at?: string
         }
       }
       response_items: {
