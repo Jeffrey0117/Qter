@@ -539,7 +539,7 @@ async function syncFormToDB() {
 
   try {
     syncStatus.value = 'syncing'
-    
+
     const formData = {
       id: form.id,
       title: form.title,
@@ -567,8 +567,8 @@ async function syncFormToDB() {
     syncStatus.value = 'synced'
     return true
   } catch (error) {
-    console.error('DB sync failed:', error)
-    syncStatus.value = 'error'
+    // 靜默處理錯誤，避免連續錯誤訊息
+    syncStatus.value = 'local'
     return false
   }
 }
@@ -591,9 +591,10 @@ function persistFormToLocalStorage() {
   }
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
-  
-  syncFormToDB().catch((err) => {
-    console.error('❌ DB sync error:', err)
+
+  // 靜默同步到資料庫（如果已登入）
+  syncFormToDB().catch(() => {
+    // 靜默處理，不顯示錯誤
   })
 }
 
@@ -825,6 +826,30 @@ const getQuestionTypeName = (type: QuestionType) => {
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <!-- 同步狀態指示器 -->
+            <div class="flex items-center gap-1 text-xs px-2 py-1 rounded-lg" :class="{
+              'bg-green-100 text-green-700': syncStatus === 'synced',
+              'bg-blue-100 text-blue-700': syncStatus === 'syncing',
+              'bg-yellow-100 text-yellow-700': syncStatus === 'local',
+              'bg-red-100 text-red-700': syncStatus === 'error'
+            }">
+              <svg v-if="syncStatus === 'synced'" class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              </svg>
+              <svg v-else-if="syncStatus === 'syncing'" class="w-3 h-3 animate-spin" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"/>
+              </svg>
+              <svg v-else-if="syncStatus === 'local'" class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"/>
+              </svg>
+              <span>{{
+                syncStatus === 'synced' ? '已同步' :
+                syncStatus === 'syncing' ? '同步中' :
+                syncStatus === 'local' ? '本地模式' :
+                '同步失敗'
+              }}</span>
+            </div>
+
             <!-- 編輯器模式切換 -->
             <button
               @click="toggleEditorMode"
@@ -843,7 +868,7 @@ const getQuestionTypeName = (type: QuestionType) => {
               </svg>
               {{ editorMode === 'visual' ? 'Markdown' : '視覺編輯' }}
             </button>
-            
+
             <button
               @click="saveForm"
               class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
