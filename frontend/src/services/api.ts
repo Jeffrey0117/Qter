@@ -24,15 +24,14 @@ export const formApi = {
         id: form.id,
         userId: form.user_id,
         title: form.title,
-        description: form.description,
+        description: form.description || '',
         questions: form.questions,
-        displayMode: form.display_mode,
-        markdownContent: form.markdown_content,
+        displayMode: (form.display_mode || 'step-by-step') as any,
+        markdownContent: form.markdown_content || '',
         autoAdvance: form.auto_advance,
         autoAdvanceDelay: form.auto_advance_delay,
         showProgress: form.show_progress,
         allowGoBack: form.allow_go_back,
-        shareHash: form.share_hash,
         createdAt: form.created_at,
         updatedAt: form.updated_at,
       }))
@@ -59,15 +58,14 @@ export const formApi = {
         id: data.id,
         userId: data.user_id,
         title: data.title,
-        description: data.description,
+        description: data.description || '',
         questions: data.questions,
-        displayMode: data.display_mode,
-        markdownContent: data.markdown_content,
+        displayMode: (data.display_mode || 'step-by-step') as any,
+        markdownContent: data.markdown_content || '',
         autoAdvance: data.auto_advance,
         autoAdvanceDelay: data.auto_advance_delay,
         showProgress: data.show_progress,
         allowGoBack: data.allow_go_back,
-        shareHash: data.share_hash,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       }
@@ -103,7 +101,7 @@ export const formApi = {
         user_id: session.session.user.id,
         title: data.title,
         description: data.description || null,
-        questions: data.questions,
+        questions: data.questions as any,
         display_mode: data.displayMode || 'classic',
         markdown_content: data.markdownContent || null,
         auto_advance: data.autoAdvance ?? false,
@@ -114,7 +112,7 @@ export const formApi = {
 
       const { data: result, error } = await supabase
         .from('forms')
-        .insert(insertData as Database['public']['Tables']['forms']['Insert'])
+        .insert(insertData as any)
         .select()
         .single<Database['public']['Tables']['forms']['Row']>()
 
@@ -152,9 +150,9 @@ export const formApi = {
       if (data.allowGoBack !== undefined) updateData.allow_go_back = data.allowGoBack
       updateData.updated_at = new Date().toISOString()
 
-      const { error } = await supabase
-        .from('forms')
-        .update(updateData as Database['public']['Tables']['forms']['Update'])
+      const { error } = await (supabase
+        .from('forms') as any)
+        .update(updateData)
         .eq('id', id)
 
       if (error) throw error
@@ -188,13 +186,14 @@ export const formApi = {
 
       const insertData = {
         form_id: formId,
-        user_id: session?.session?.user?.id || null,
-        responses: responses,
+        respondent_user_id: session?.session?.user?.id || null,
+        submitted_at: new Date().toISOString(),
+        meta_json: { responses } as any,
       }
 
       const { data, error } = await supabase
         .from('responses')
-        .insert(insertData as Database['public']['Tables']['responses']['Insert'])
+        .insert(insertData as any)
         .select()
         .single<Database['public']['Tables']['responses']['Row']>()
 
@@ -314,10 +313,10 @@ export const publicApi = {
         id: data.id,
         userId: data.user_id,
         title: data.title,
-        description: data.description,
+        description: data.description || '',
         questions: data.questions,
-        displayMode: data.display_mode,
-        markdownContent: data.markdown_content,
+        displayMode: (data.display_mode || 'step-by-step') as any,
+        markdownContent: data.markdown_content || '',
         autoAdvance: data.auto_advance,
         autoAdvanceDelay: data.auto_advance_delay,
         showProgress: data.show_progress,
@@ -347,27 +346,30 @@ export const publicApi = {
       if (!shareLink.is_enabled) throw new Error('Share link is disabled')
 
       // 創建 response 記錄
+      const responseInsertData = {
+        form_id: shareLink.form_id,
+        share_link_id: shareLink.id,
+        respondent_user_id: null,
+        submitted_at: new Date().toISOString(),
+        meta_json: {
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        } as any,
+      }
+
       const { data: responseData, error: responseError } = await supabase
         .from('responses')
-        .insert({
-          form_id: shareLink.form_id,
-          share_link_id: shareLink.id,
-          respondent_user_id: null,
-          meta_json: {
-            userAgent: navigator.userAgent,
-            timestamp: new Date().toISOString(),
-          },
-        } as Database['public']['Tables']['responses']['Insert'])
+        .insert(responseInsertData as any)
         .select()
         .single<Database['public']['Tables']['responses']['Row']>()
 
       if (responseError) throw responseError
 
       // 插入每個問題的回答到 response_items
-      const responseItems: Database['public']['Tables']['response_items']['Insert'][] = Object.entries(payload.responses).map(([questionId, answer]) => {
-        let value_text = null
-        let value_number = null
-        let value_json = null
+      const responseItems: any[] = Object.entries(payload.responses).map(([questionId, answer]) => {
+        let value_text: string | null = null
+        let value_number: number | null = null
+        let value_json: any = null
 
         if (typeof answer === 'string') {
           value_text = answer
@@ -391,7 +393,7 @@ export const publicApi = {
 
       const { error: itemsError } = await supabase
         .from('response_items')
-        .insert(responseItems)
+        .insert(responseItems as any)
 
       if (itemsError) throw itemsError
 

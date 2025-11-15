@@ -22,8 +22,9 @@ export interface Form {
   id: string
   title: string
   description: string
-  questions: Question[]
+  questions: Question[] | any
   displayMode?: DisplayMode
+  markdownContent?: string
   // 新增設定：自動跳題與延遲（預設 true / 300ms）
   autoAdvance?: boolean
   autoAdvanceDelay?: number
