@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>測試寫入資料庫</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+    button { background: #4ade80; color: #000; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px 5px; }
+    pre { background: #2d2d2d; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    .ok { color: #4ade80; }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1>🔬 測試 Supabase 寫入</h1>
+  <button onclick="testEnv()">1. 檢查環境變數</button>
+  <button onclick="testWrite()">2. 測試寫入資料庫</button>
+  <button onclick="testRead()">3. 讀取資料庫</button>
+
+  <div id="result"></div>
+
+  <script type="module">
+    const result = document.getElementById('result')
+
+    function log(msg, type = 'ok') {
+      result.innerHTML += `<div class="${type}">${msg}</div>`
+    }
+
+    window.testEnv = function() {
+      result.innerHTML = '<h2>環境變數檢查</h2>'
+
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      if (url) {
+        log(`✅ VITE_SUPABASE_URL = ${url}`, 'ok')
+      } else {
+        log(`❌ VITE_SUPABASE_URL 未設定`, 'error')
+      }
+
+      if (key) {
+        log(`✅ VITE_SUPABASE_ANON_KEY = ${key.substring(0, 30)}...`, 'ok')
+      } else {
+        log(`❌ VITE_SUPABASE_ANON_KEY 未設定`, 'error')
+      }
+    }
+
+    window.testWrite = async function() {
+      result.innerHTML = '<h2>測試寫入</h2>'
+
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      if (!url || !key) {
+        log('❌ 環境變數未設定', 'error')
+        return
+      }
+
+      const testForm = {
+        id: crypto.randomUUID(),
+        user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+        title: '測試問卷 - ' + new Date().toLocaleString('zh-TW'),
+        description: '驗證寫入功能',
+        questions: [],
+        display_mode: 'step-by-step',
+        status: 'active'
+      }
+
+      log(`📝 準備寫入: ${testForm.id}`)
+
+      try {
+        const response = await fetch(`${url}/rest/v1/forms`, {
+          method: 'POST',
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(testForm)
+        })
+
+        if (!response.ok) {
+          const error = await response.text()
+          log(`❌ 寫入失敗 (${response.status}): ${error}`, 'error')
+          return
+        }
+
+        const data = await response.json()
+        log(`✅ 寫入成功！`, 'ok')
+        log(`<pre>${JSON.stringify(data, null, 2)}</pre>`)
+        log(`<a href="/fill/${testForm.id}" target="_blank">📋 測試連結: /fill/${testForm.id}</a>`)
+      } catch (e) {
+        log(`❌ 錯誤: ${e.message}`, 'error')
+      }
+    }
+
+    window.testRead = async function() {
+      result.innerHTML = '<h2>讀取資料庫</h2>'
+
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      if (!url || !key) {
+        log('❌ 環境變數未設定', 'error')
+        return
+      }
+
+      try {
+        const response = await fetch(`${url}/rest/v1/forms?select=id,title&order=created_at.desc&limit=5`, {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`
+          }
+        })
+
+        if (!response.ok) {
+          const error = await response.text()
+          log(`❌ 讀取失敗: ${error}`, 'error')
+          return
+        }
+
+        const data = await response.json()
+        log(`✅ 讀取成功，找到 ${data.length} 個問卷`)
+        log(`<pre>${JSON.stringify(data, null, 2)}</pre>`)
+      } catch (e) {
+        log(`❌ 錯誤: ${e.message}`, 'error')
+      }
+    }
+  </script>
+</body>
+</html>
