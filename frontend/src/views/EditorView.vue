@@ -917,19 +917,67 @@ onMounted(async () => {
         markdownContent.value = generateMarkdownFromForm(form)
       }
 
-      // 標記為已同步（因為剛從 DB 載入）
-      syncStatus.value = 'synced'
+      // 🔥 標記為本地模式（資料庫同步已暫時禁用）
+      syncStatus.value = 'local'
 
       // 🔥 資料載入完成，啟用自動保存
-      console.log('✅ [Editor] Data loaded, enabling auto-save')
+      console.log('✅ [Editor] Data loaded, enabling auto-save (localStorage only)')
       isDataLoaded.value = true
     } else {
-      console.error('❌ [Editor] Form not found in DB or localStorage:', route.params.id)
-      // 即使找不到表單，也要啟用 watch（讓用戶可以創建新問卷）
+      console.error('❌ [Editor] Form not found in localStorage:', route.params.id)
+      console.log('🆕 [Editor] Creating new form with ID:', route.params.id)
+
+      // 🔥 創建新問卷並立即保存到 localStorage
+      form.id = route.params.id as string
+      form.title = '未命名問卷'
+      form.description = ''
+      form.questions = []
+
+      // 立即保存到 localStorage
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      savedForms.push({
+        id: form.id,
+        title: form.title,
+        description: form.description,
+        questions: form.questions,
+        displayMode: form.displayMode,
+        autoAdvance: form.autoAdvance,
+        autoAdvanceDelay: form.autoAdvanceDelay,
+        showProgress: form.showProgress,
+        allowGoBack: form.allowGoBack,
+        markdownContent: markdownContent.value,
+      })
+      localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+      console.log('✅ [Editor] New form saved to localStorage')
+
+      syncStatus.value = 'local'
       isDataLoaded.value = true
     }
   } else {
-    // 新問卷，啟用自動保存
+    // 新問卷（ID 是 'new'），創建並保存
+    console.log('🆕 [Editor] Creating new form (ID=new)')
+    const newId = generateHash()
+    form.id = newId
+    router.replace(`/editor/${newId}`)
+
+    // 保存到 localStorage
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    savedForms.push({
+      id: form.id,
+      title: form.title,
+      description: form.description,
+      questions: form.questions,
+      displayMode: form.displayMode,
+      autoAdvance: form.autoAdvance,
+      autoAdvanceDelay: form.autoAdvanceDelay,
+      showProgress: form.showProgress,
+      allowGoBack: form.allowGoBack,
+      markdownContent: markdownContent.value,
+    })
+    localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+    console.log('✅ [Editor] New form created and saved:', form.id)
+
+    syncStatus.value = 'local'
     isDataLoaded.value = true
   }
 })
