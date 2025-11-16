@@ -622,7 +622,9 @@ function persistFormToLocalStorage() {
     allowGoBack: form.allowGoBack,
     markdownContent: editorMode.value === 'markdown'
       ? markdownContent.value
-      : generateMarkdownFromForm(form)
+      : generateMarkdownFromForm(form),
+    createdAt: new Date().toISOString(), // 添加時間戳
+    updatedAt: new Date().toISOString()
   }
 
   console.log('💾 Saving form with', toSave.questions.length, 'questions')
