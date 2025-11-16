@@ -79,6 +79,21 @@ onMounted(async () => {
   if (formId) {
     let savedForm = null
 
+    // 🔥 臨時改為只從 localStorage 載入，避免資料庫 UUID 問題
+    console.log('🔍 [Fill] Loading form from localStorage (DB sync disabled)')
+    const demoData = localStorage.getItem(`qter_demo_${formId}`)
+    if (demoData) {
+      savedForm = JSON.parse(demoData)
+      console.log('✅ [Fill] Loaded from demo data')
+    } else {
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      savedForm = savedForms.find((f: any) => f.id === formId)
+      if (savedForm) {
+        console.log('✅ [Fill] Loaded from localStorage')
+      }
+    }
+
+    /* 暫時註解掉資料庫載入
     const demoData = localStorage.getItem(`qter_demo_${formId}`)
     if (demoData) {
       savedForm = JSON.parse(demoData)
@@ -97,6 +112,7 @@ onMounted(async () => {
         savedForm = savedForms.find((f: any) => f.id === formId)
       }
     }
+    */
 
     if (savedForm) {
       form.value = savedForm
