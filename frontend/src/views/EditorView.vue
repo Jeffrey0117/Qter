@@ -532,11 +532,6 @@ const handleDragEnd = () => {
 }
 
 async function syncFormToDB() {
-  if (!authStore.isAuthenticated) {
-    syncStatus.value = 'local'
-    return false
-  }
-
   try {
     syncStatus.value = 'syncing'
 
@@ -559,16 +554,19 @@ async function syncFormToDB() {
     const existingLocal = savedForms.find((f: any) => f.id === form.id)
 
     if (existingLocal) {
+      console.log('🔄 Updating form in DB:', form.id)
       await formApi.updateForm(form.id, formData)
     } else {
+      console.log('➕ Creating form in DB:', form.id)
       await formApi.createForm(formData)
     }
 
     syncStatus.value = 'synced'
+    console.log('✅ Sync successful:', form.id)
     return true
   } catch (error) {
-    // 靜默處理錯誤，避免連續錯誤訊息
-    syncStatus.value = 'local'
+    console.error('❌ Sync failed:', error)
+    syncStatus.value = 'error'
     return false
   }
 }
@@ -592,9 +590,9 @@ function persistFormToLocalStorage() {
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
 
-  // 靜默同步到資料庫（如果已登入）
-  syncFormToDB().catch(() => {
-    // 靜默處理，不顯示錯誤
+  // 自動同步到資料庫
+  syncFormToDB().catch((error) => {
+    console.error('Auto-sync failed:', error)
   })
 }
 
@@ -615,14 +613,12 @@ const saveForm = async () => {
   }
 
   persistFormToLocalStorage()
-  
+
   const synced = await syncFormToDB()
   if (synced) {
-    alert('問卷已儲存並同步至雲端！')
-  } else if (!authStore.isAuthenticated) {
-    alert('問卷已儲存至本地（請登入以同步至雲端）')
+    alert('✅ 問卷已儲存並同步至雲端！')
   } else {
-    alert('問卷已儲存至本地，雲端同步失敗')
+    alert('⚠️ 問卷已儲存至本地，但雲端同步失敗')
   }
 }
 
