@@ -92,8 +92,9 @@ onMounted(() => {
         })
       }
     } else {
-      alert('找不到問卷')
-      router.push('/')
+      // 靜默處理，顯示頁面錯誤訊息而不是彈窗
+      console.error('找不到問卷:', formId)
+      // form 保持為 null，頁面會顯示找不到問卷的 UI 狀態
     }
   }
 })
@@ -463,10 +464,18 @@ const setQuestionRef = (qid: string) => (el: Element | ComponentPublicInstance |
       </main>
     </div>
 
-    <div v-else class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p class="text-gray-600">載入問卷中...</p>
+    <!-- 找不到問卷 -->
+    <div v-else class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center max-w-md">
+        <div class="text-6xl mb-4">📋</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">找不到問卷</h2>
+        <p class="text-gray-600 mb-6">請確認連結是否正確，或問卷可能已被刪除</p>
+        <button
+          @click="goHome"
+          class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          返回首頁
+        </button>
       </div>
     </div>
   </div>

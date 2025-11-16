@@ -144,8 +144,9 @@ onMounted(() => {
         responses.value = allResponses[formId as string]
       }
     } else {
-      alert('找不到問卷')
-      router.push('/')
+      // 靜默處理，顯示頁面錯誤訊息而不是彈窗
+      console.error('找不到問卷:', formId)
+      // form 保持為 null，頁面會顯示找不到問卷的訊息
     }
   }
 })
@@ -243,34 +244,51 @@ const goToPage = (page: number) => {
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- 頂部導航 -->
-    <nav class="bg-white shadow-sm border-b">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-16">
-          <div class="flex items-center gap-4">
-            <button
-              @click="goBack"
-              class="text-gray-600 hover:text-gray-900"
-            >
-              ← 返回
-            </button>
-            <div v-if="form">
-              <h1 class="text-lg font-semibold text-gray-800">{{ form.title }} - 回應</h1>
-              <p class="text-sm text-gray-600">共 {{ responses.length }} 份回應</p>
-            </div>
-          </div>
-          <button
-            @click="exportToCSV"
-            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
-          >
-            <span>📥</span>
-            <span>匯出 CSV</span>
-          </button>
-        </div>
+    <!-- 找不到問卷錯誤訊息 -->
+    <div v-if="!form" class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center max-w-md">
+        <div class="text-6xl mb-4">📋</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">找不到問卷</h2>
+        <p class="text-gray-600 mb-6">請確認連結是否正確，或問卷可能已被刪除</p>
+        <button
+          @click="goBack"
+          class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          返回首頁
+        </button>
       </div>
-    </nav>
+    </div>
 
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- 正常顯示問卷回應 -->
+    <template v-else>
+      <!-- 頂部導航 -->
+      <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center h-16">
+            <div class="flex items-center gap-4">
+              <button
+                @click="goBack"
+                class="text-gray-600 hover:text-gray-900"
+              >
+                ← 返回
+              </button>
+              <div>
+                <h1 class="text-lg font-semibold text-gray-800">{{ form.title }} - 回應</h1>
+                <p class="text-sm text-gray-600">共 {{ responses.length }} 份回應</p>
+              </div>
+            </div>
+            <button
+              @click="exportToCSV"
+              class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+            >
+              <span>📥</span>
+              <span>匯出 CSV</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- 統計概覽 -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">統計概覽</h2>
@@ -445,5 +463,6 @@ const goToPage = (page: number) => {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

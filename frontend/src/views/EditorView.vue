@@ -532,6 +532,8 @@ const handleDragEnd = () => {
 }
 
 async function syncFormToDB() {
+  console.log('🔍 syncFormToDB called')
+
   try {
     syncStatus.value = 'syncing'
 
@@ -550,15 +552,19 @@ async function syncFormToDB() {
       allowGoBack: form.allowGoBack,
     }
 
+    console.log('📝 Form data:', formData)
+
     const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
     const existingLocal = savedForms.find((f: any) => f.id === form.id)
 
     if (existingLocal) {
       console.log('🔄 Updating form in DB:', form.id)
-      await formApi.updateForm(form.id, formData)
+      const result = await formApi.updateForm(form.id, formData)
+      console.log('🔄 Update result:', result)
     } else {
       console.log('➕ Creating form in DB:', form.id)
-      await formApi.createForm(formData)
+      const result = await formApi.createForm(formData)
+      console.log('➕ Create result:', result)
     }
 
     syncStatus.value = 'synced'
@@ -566,12 +572,15 @@ async function syncFormToDB() {
     return true
   } catch (error) {
     console.error('❌ Sync failed:', error)
+    console.error('❌ Error details:', error)
     syncStatus.value = 'error'
-    return false
+    throw error  // 不要靜默吞掉錯誤
   }
 }
 
 function persistFormToLocalStorage() {
+  console.log('💾 persistFormToLocalStorage called')
+
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
@@ -589,14 +598,18 @@ function persistFormToLocalStorage() {
   }
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+  console.log('💾 Saved to localStorage:', form.id)
 
-  // 自動同步到資料庫
+  // 自動同步到資料庫 - 不要靜默吞掉錯誤
   syncFormToDB().catch((error) => {
-    console.error('Auto-sync failed:', error)
+    console.error('❌ Auto-sync failed:', error)
+    // 錯誤已經被 syncFormToDB 內部處理，這裡只是確保不會中斷執行
   })
 }
 
 const saveForm = async () => {
+  console.log('💾 saveForm called')
+
   if (editorMode.value === 'markdown') {
     const parsed = parseMarkdownToForm(markdownContent.value)
     parsed.id = form.id
@@ -612,13 +625,33 @@ const saveForm = async () => {
     }
   }
 
-  persistFormToLocalStorage()
+  // 先儲存到 localStorage（不觸發自動同步）
+  const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+  const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
-  const synced = await syncFormToDB()
-  if (synced) {
-    alert('✅ 問卷已儲存並同步至雲端！')
+  const toSave = {
+    ...form,
+    markdownContent: editorMode.value === 'markdown'
+      ? markdownContent.value
+      : generateMarkdownFromForm(form)
+  }
+
+  if (existingIndex !== -1) {
+    savedForms[existingIndex] = toSave
   } else {
-    alert('⚠️ 問卷已儲存至本地，但雲端同步失敗')
+    savedForms.push(toSave)
+  }
+
+  localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+  console.log('💾 Saved to localStorage:', form.id)
+
+  // 然後強制同步到資料庫
+  try {
+    await syncFormToDB()
+    alert('✅ 問卷已儲存並同步至雲端！')
+  } catch (error) {
+    console.error('❌ Save form failed:', error)
+    alert('⚠️ 問卷已儲存至本地，但雲端同步失敗。請檢查控制台錯誤訊息。')
   }
 }
 

@@ -8,7 +8,9 @@ export const formApi = {
     try {
       // 使用固定測試用戶 ID 查詢
       const defaultUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+      console.log('🔵 [API] getForms called with userId:', defaultUserId)
 
+      console.log('📤 [API] Sending to Supabase: SELECT * FROM forms WHERE user_id =', defaultUserId)
       const { data, error } = await supabase
         .from('forms')
         .select('*')
@@ -34,15 +36,20 @@ export const formApi = {
         updatedAt: form.updated_at,
       }))
 
+      console.log('✅ [API] Success: Retrieved', forms.length, 'forms')
       return { success: true, forms }
     } catch (error) {
-      console.error('getForms error:', error)
+      console.error('❌ [API] getForms error:', error)
+      console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
       throw error
     }
   },
 
   async getForm(id: string): Promise<{ success: boolean; form: Form }> {
     try {
+      console.log('🔵 [API] getForm called with id:', id)
+
+      console.log('📤 [API] Sending to Supabase: SELECT * FROM forms WHERE id =', id)
       const { data, error } = await supabase
         .from('forms')
         .select('*')
@@ -68,9 +75,11 @@ export const formApi = {
         updatedAt: data.updated_at,
       }
 
+      console.log('✅ [API] Success: Retrieved form:', form.id, form.title)
       return { success: true, form }
     } catch (error) {
-      console.error('getForm error:', error)
+      console.error('❌ [API] getForm error:', error)
+      console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
       throw error
     }
   },
@@ -88,6 +97,8 @@ export const formApi = {
     allowGoBack?: boolean
   }): Promise<{ success: boolean; form: any }> {
     try {
+      console.log('🔵 [API] createForm called with:', data.id, data.title)
+
       // 使用固定測試用戶 ID（暫時方案，與 sync-form.html 一致）
       const defaultUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 
@@ -107,6 +118,7 @@ export const formApi = {
         status: 'active',
       }
 
+      console.log('📤 [API] Sending to Supabase:', insertData)
       const { data: result, error } = await supabase
         .from('forms')
         .insert(insertData as any)
@@ -114,14 +126,16 @@ export const formApi = {
         .single<Database['public']['Tables']['forms']['Row']>()
 
       if (error) {
-        console.error('Supabase insert error:', error)
+        console.error('❌ [API] Supabase insert error:', error)
+        console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
         throw error
       }
 
-      console.log('✅ Form created in database:', result.id)
+      console.log('✅ [API] Success: Form created in database:', result.id)
       return { success: true, form: result }
     } catch (error) {
-      console.error('❌ createForm failed:', error)
+      console.error('❌ [API] createForm failed:', error)
+      console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
       throw error
     }
   },
@@ -138,6 +152,7 @@ export const formApi = {
     allowGoBack?: boolean
   }): Promise<{ success: boolean }> {
     try {
+      console.log('🔵 [API] updateForm called with:', id, data.title || '(title not updated)')
 
       // 轉換前端格式到資料庫欄位名稱
       const updateData: any = {}
@@ -152,20 +167,23 @@ export const formApi = {
       if (data.allowGoBack !== undefined) updateData.allow_go_back = data.allowGoBack
       updateData.updated_at = new Date().toISOString()
 
+      console.log('📤 [API] Sending to Supabase:', updateData)
       const { error } = await (supabase
         .from('forms') as any)
         .update(updateData)
         .eq('id', id)
 
       if (error) {
-        console.error('Supabase update error:', error)
+        console.error('❌ [API] Supabase update error:', error)
+        console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
         throw error
       }
 
-      console.log('✅ Form updated in database:', id)
+      console.log('✅ [API] Success: Form updated in database:', id)
       return { success: true }
     } catch (error) {
-      console.error('❌ updateForm failed:', error)
+      console.error('❌ [API] updateForm failed:', error)
+      console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
       throw error
     }
   },
