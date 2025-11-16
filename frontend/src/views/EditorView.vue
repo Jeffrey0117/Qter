@@ -554,17 +554,20 @@ async function syncFormToDB() {
 
     console.log('📝 Form data:', formData)
 
-    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-    const existingLocal = savedForms.find((f: any) => f.id === form.id)
-
-    if (existingLocal) {
-      console.log('🔄 Updating form in DB:', form.id)
-      const result = await formApi.updateForm(form.id, formData)
-      console.log('🔄 Update result:', result)
-    } else {
-      console.log('➕ Creating form in DB:', form.id)
+    // 總是先嘗試創建（使用 upsert），如果已存在則自動更新
+    try {
+      console.log('➕ Attempting to create/upsert form in DB:', form.id)
       const result = await formApi.createForm(formData)
-      console.log('➕ Create result:', result)
+      console.log('➕ Create/upsert result:', result)
+    } catch (createError: any) {
+      // 如果創建失敗（可能是已存在），嘗試更新
+      if (createError?.code === '23505' || createError?.message?.includes('duplicate')) {
+        console.log('🔄 Form exists, updating instead:', form.id)
+        const result = await formApi.updateForm(form.id, formData)
+        console.log('🔄 Update result:', result)
+      } else {
+        throw createError
+      }
     }
 
     syncStatus.value = 'synced'

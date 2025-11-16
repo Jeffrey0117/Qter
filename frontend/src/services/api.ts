@@ -118,20 +118,23 @@ export const formApi = {
         status: 'active',
       }
 
-      console.log('📤 [API] Sending to Supabase:', insertData)
+      console.log('📤 [API] Sending to Supabase (upsert):', insertData)
       const { data: result, error } = await supabase
         .from('forms')
-        .insert(insertData as any)
+        .upsert(insertData as any, {
+          onConflict: 'id',  // 如果 ID 衝突則更新
+          ignoreDuplicates: false  // 不忽略，而是更新
+        })
         .select()
         .single<Database['public']['Tables']['forms']['Row']>()
 
       if (error) {
-        console.error('❌ [API] Supabase insert error:', error)
+        console.error('❌ [API] Supabase upsert error:', error)
         console.error('❌ [API] Error details:', JSON.stringify(error, null, 2))
         throw error
       }
 
-      console.log('✅ [API] Success: Form created in database:', result.id)
+      console.log('✅ [API] Success: Form created/updated in database:', result.id)
       return { success: true, form: result }
     } catch (error) {
       console.error('❌ [API] createForm failed:', error)
