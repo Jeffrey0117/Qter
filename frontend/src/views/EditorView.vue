@@ -950,6 +950,7 @@ onMounted(async () => {
 
       // 立即保存到 localStorage
       const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      const now = new Date().toISOString()
       savedForms.push({
         id: form.id,
         title: form.title,
@@ -961,9 +962,11 @@ onMounted(async () => {
         showProgress: form.showProgress,
         allowGoBack: form.allowGoBack,
         markdownContent: markdownContent.value,
+        createdAt: now,
+        updatedAt: now,
       })
       localStorage.setItem('qter_forms', JSON.stringify(savedForms))
-      console.log('✅ [Editor] New form saved to localStorage')
+      console.log('✅ [Editor] New form saved to localStorage with timestamps')
 
       syncStatus.value = 'local'
       isDataLoaded.value = true
@@ -977,6 +980,7 @@ onMounted(async () => {
 
     // 保存到 localStorage
     const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const now = new Date().toISOString()
     savedForms.push({
       id: form.id,
       title: form.title,
@@ -988,9 +992,11 @@ onMounted(async () => {
       showProgress: form.showProgress,
       allowGoBack: form.allowGoBack,
       markdownContent: markdownContent.value,
+      createdAt: now,
+      updatedAt: now,
     })
     localStorage.setItem('qter_forms', JSON.stringify(savedForms))
-    console.log('✅ [Editor] New form created and saved:', form.id)
+    console.log('✅ [Editor] New form created and saved with timestamps:', form.id)
 
     syncStatus.value = 'local'
     isDataLoaded.value = true
