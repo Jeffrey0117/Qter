@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { generateHash } from '@/utils/hash'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -193,7 +194,7 @@ const copyDemoAsTemplate = (id: string) => {
 
   const demoForm = forms.value.find(f => f.id === id)
   if (demoForm) {
-    const newId = crypto.randomUUID()
+    const newId = generateHash()
     const newForm = {
       ...demoForm,
       id: newId,

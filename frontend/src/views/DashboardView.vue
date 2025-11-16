@@ -171,6 +171,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { formApi } from '@/services/api'
+import { generateHash } from '@/utils/hash'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -215,7 +216,7 @@ const loadForms = async () => {
 
 const createNewForm = () => {
   // 建立新問卷並導向編輯器
-  const newFormId = crypto.randomUUID()
+  const newFormId = generateHash()
   router.push(`/editor/${newFormId}`)
 }
 

@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 import { formApi } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { generateHash } from '@/utils/hash'
 
 // 題目類型定義
 type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
@@ -297,7 +298,7 @@ const draggedQuestion = ref<Question | null>(null)
       const className = m && m[2] ? m[2].trim() : undefined
 
       currentQuestion = {
-        id: `q_${Date.now()}_${Math.random()}`,
+        id: generateHash(),
         title,
         className,
         type: 'text',
@@ -328,7 +329,7 @@ const draggedQuestion = ref<Question | null>(null)
           while (optionIndex < lines.length && lines[optionIndex].trim().startsWith('- ')) {
             const optionText = lines[optionIndex].trim().substring(2)
             currentQuestion.options!.push({
-              id: `opt_${Date.now()}_${Math.random()}`,
+              id: generateHash(),
               text: optionText.replace(/"/g, '')
             })
             optionIndex++
@@ -409,14 +410,14 @@ const toggleEditorMode = () => {
 // 新增題目
 const addQuestion = (type: QuestionType) => {
   const newQuestion: Question = {
-    id: `q_${Date.now()}`,
+    id: generateHash(),
     type,
     title: type === 'divider' ? '' : '新問題',
     required: false,
-    options: type === 'radio' || type === 'checkbox' 
+    options: type === 'radio' || type === 'checkbox'
       ? [
-          { id: `opt_${Date.now()}_1`, text: '選項 1' },
-          { id: `opt_${Date.now()}_2`, text: '選項 2' }
+          { id: generateHash(), text: '選項 1' },
+          { id: generateHash(), text: '選項 2' }
         ]
       : undefined
   }
@@ -446,10 +447,10 @@ const deleteQuestion = (id: string) => {
 const duplicateQuestion = (question: Question) => {
   const newQuestion: Question = {
     ...question,
-    id: `q_${Date.now()}`,
+    id: generateHash(),
     options: question.options?.map(opt => ({
       ...opt,
-      id: `opt_${Date.now()}_${Math.random()}`
+      id: generateHash()
     }))
   }
   const index = form.questions.findIndex(q => q.id === question.id)
@@ -465,7 +466,7 @@ const duplicateQuestion = (question: Question) => {
 const addOption = (question: Question) => {
   if (!question.options) question.options = []
   question.options.push({
-    id: `opt_${Date.now()}`,
+    id: generateHash(),
     text: `選項 ${question.options.length + 1}`
   })
   
