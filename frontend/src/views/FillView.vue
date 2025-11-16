@@ -391,13 +391,7 @@ const handleFileUpload = (questionId: string, file: File) => {
       <!-- 頂部進度條 -->
       <div v-if="form?.showProgress !== false" class="bg-white shadow-sm">
         <div class="max-w-2xl mx-auto px-4 py-4 progress-boost">
-          <div class="flex items-center justify-between mb-2">
-            <button
-              @click="goHome"
-              class="text-gray-600 hover:text-gray-900"
-            >
-              ← 返回
-            </button>
+          <div class="flex items-center justify-end mb-2">
             <span class="text-sm text-gray-600">
               {{ currentQuestionIndex + 1 }} / {{ form.questions.length }}
             </span>

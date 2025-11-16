@@ -1,5 +1,18 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- Toast 通知 -->
+    <div
+      v-if="showToast"
+      class="fixed top-4 right-4 z-50 animate-slide-in"
+    >
+      <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>{{ toastMessage }}</span>
+      </div>
+    </div>
+
     <!-- 頂部導航欄 -->
     <nav class="bg-white shadow-sm border-b">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -12,7 +25,7 @@
           <!-- 右側用戶資訊 -->
           <div class="flex items-center space-x-4">
             <span class="text-gray-700">{{ authStore.user?.name }}</span>
-            
+
             <!-- 用戶頭像下拉選單 -->
             <div class="relative">
               <button
@@ -178,6 +191,8 @@ const router = useRouter()
 
 const showDropdown = ref(false)
 const forms = ref<any[]>([])
+const showToast = ref(false)
+const toastMessage = ref('')
 const totalResponses = computed(() => {
   return forms.value.reduce((sum, form) => sum + (form.responseCount || 0), 0)
 })

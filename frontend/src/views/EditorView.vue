@@ -764,8 +764,56 @@ const goBack = () => {
   router.push('/dashboard')
 }
 
+// 複製分享網址相關
+const showCopySuccess = ref(false)
+let copySuccessTimer: number | null = null
+
+const copyShareUrl = async () => {
+  const shareUrl = `https://qter.vercel.app/fill/${form.id}`
+
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    showCopySuccess.value = true
+
+    // 清除之前的計時器
+    if (copySuccessTimer) {
+      clearTimeout(copySuccessTimer)
+    }
+
+    // 3 秒後隱藏提示
+    copySuccessTimer = setTimeout(() => {
+      showCopySuccess.value = false
+    }, 3000)
+  } catch (err) {
+    console.error('複製失敗:', err)
+    // 降級方案：使用傳統方式複製
+    const textarea = document.createElement('textarea')
+    textarea.value = shareUrl
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-999999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      showCopySuccess.value = true
+
+      if (copySuccessTimer) {
+        clearTimeout(copySuccessTimer)
+      }
+
+      copySuccessTimer = setTimeout(() => {
+        showCopySuccess.value = false
+      }, 3000)
+    } catch (err) {
+      console.error('複製失敗:', err)
+    } finally {
+      document.body.removeChild(textarea)
+    }
+  }
+}
+
  // 載入表單資料
-onMounted(() => {
+onMounted(async () => {
   // 預覽樣式：載入與後續監看
   buildAndApplyMarkdown(markdownContent.value, 'qter-style-editor-preview', 'editor-preview')
   watch(markdownContent, (v) => {
@@ -783,8 +831,30 @@ onMounted(() => {
   }
 
   if (route.params.id && route.params.id !== 'new') {
-    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-    const savedForm = savedForms.find((f: any) => f.id === route.params.id)
+    let savedForm = null
+
+    // 🔥 修復：優先從資料庫載入表單（與 FillView 一致）
+    console.log('🔍 [Editor] Loading form from database first:', route.params.id)
+    try {
+      const response = await formApi.getForm(route.params.id as string)
+      if (response.success && response.form) {
+        savedForm = response.form
+        console.log('✅ [Editor] Loaded from database:', savedForm.id, savedForm.title)
+      }
+    } catch (error) {
+      console.error('⚠️ [Editor] DB fetch failed, fallback to localStorage:', error)
+    }
+
+    // 如果資料庫載入失敗，才從 localStorage 載入
+    if (!savedForm) {
+      console.log('🔍 [Editor] Trying localStorage fallback...')
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      savedForm = savedForms.find((f: any) => f.id === route.params.id)
+      if (savedForm) {
+        console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
+      }
+    }
+
     if (savedForm) {
       Object.assign(form, savedForm)
 
@@ -813,6 +883,11 @@ onMounted(() => {
         // 若沒有存 markdownContent，則用現有表單生成一次，並填入 markdownContent
         markdownContent.value = generateMarkdownFromForm(form)
       }
+
+      // 標記為已同步（因為剛從 DB 載入）
+      syncStatus.value = 'synced'
+    } else {
+      console.error('❌ [Editor] Form not found in DB or localStorage:', route.params.id)
     }
   }
 })
