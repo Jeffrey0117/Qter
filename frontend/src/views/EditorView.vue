@@ -548,13 +548,6 @@ const handleDragEnd = () => {
 async function syncFormToDB() {
   console.log('🔍 syncFormToDB called')
 
-  // 🔥 臨時禁用資料庫同步 - 等待資料庫 migration 完成
-  console.log('⏸️ Database sync temporarily disabled (UUID type conflict)')
-  console.log('💾 Using localStorage only for now')
-  syncStatus.value = 'local'
-  return true
-
-  /* 暫時註解掉資料庫同步，等 SQL migration 執行完再啟用
   try {
     syncStatus.value = 'syncing'
 
@@ -598,9 +591,9 @@ async function syncFormToDB() {
     console.error('❌ Sync failed:', error)
     console.error('❌ Error details:', error)
     syncStatus.value = 'error'
-    throw error  // 不要靜默吞掉錯誤
+    // 不拋出錯誤，允許繼續使用 localStorage
+    return false
   }
-  */
 }
 
 function persistFormToLocalStorage() {
@@ -872,18 +865,7 @@ onMounted(async () => {
   if (route.params.id && route.params.id !== 'new') {
     let savedForm = null
 
-    // 🔥 臨時改為只從 localStorage 載入，避免資料庫 UUID 問題
-    console.log('🔍 [Editor] Loading form from localStorage (DB sync disabled)')
-    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-    savedForm = savedForms.find((f: any) => f.id === route.params.id)
-    if (savedForm) {
-      console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
-    } else {
-      console.log('⚠️ [Editor] Form not found in localStorage')
-    }
-
-    /* 暫時註解掉資料庫載入，等 SQL migration 執行完再啟用
-    // 🔥 修復：優先從資料庫載入表單（與 FillView 一致）
+    // 🔥 優先從資料庫載入表單（與 FillView 一致）
     console.log('🔍 [Editor] Loading form from database first:', route.params.id)
     try {
       const response = await formApi.getForm(route.params.id as string)
@@ -904,7 +886,6 @@ onMounted(async () => {
         console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
       }
     }
-    */
 
     if (savedForm) {
       Object.assign(form, savedForm)
@@ -935,11 +916,11 @@ onMounted(async () => {
         markdownContent.value = generateMarkdownFromForm(form)
       }
 
-      // 🔥 標記為本地模式（資料庫同步已暫時禁用）
-      syncStatus.value = 'local'
+      // 標記為已同步（因為剛從 DB 載入）
+      syncStatus.value = 'synced'
 
       // 🔥 資料載入完成，啟用自動保存
-      console.log('✅ [Editor] Data loaded, enabling auto-save (localStorage only)')
+      console.log('✅ [Editor] Data loaded, enabling auto-save')
       isDataLoaded.value = true
     } else {
       console.error('❌ [Editor] Form not found in localStorage:', route.params.id)

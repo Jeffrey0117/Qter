@@ -202,31 +202,6 @@ onMounted(() => {
 })
 
 const loadForms = async () => {
-  // 🔥 臨時改為只從 localStorage 載入，避免資料庫 UUID 問題
-  console.log('🔍 [Dashboard] Loading forms from localStorage (DB sync disabled)')
-
-  const storedData = localStorage.getItem('qter_forms')
-  if (storedData) {
-    try {
-      const localForms = JSON.parse(storedData)
-      if (Array.isArray(localForms)) {
-        const filtered = localForms.filter(f => {
-          const isDemoForm = ['featured-2025', '1', '2', '3'].includes(f.id)
-          return !isDemoForm
-        })
-        forms.value = filtered
-        console.log(`✅ [Dashboard] Loaded ${filtered.length} forms from localStorage`)
-      }
-    } catch (e) {
-      console.error('載入本地問卷失敗', e)
-      forms.value = []
-    }
-  } else {
-    console.log('⚠️ [Dashboard] No forms found in localStorage')
-    forms.value = []
-  }
-
-  /* 暫時註解掉資料庫載入
   try {
     const response = await formApi.getForms()
     if (response.success && Array.isArray(response.forms)) {
@@ -252,7 +227,6 @@ const loadForms = async () => {
       console.error('載入本地問卷失敗', e)
     }
   }
-  */
 }
 
 const createNewForm = () => {
