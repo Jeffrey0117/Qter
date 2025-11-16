@@ -719,7 +719,9 @@ const resetToDefaultSurvey = () => {
 }
 
 // 預覽表單
-const previewForm = () => {
+const previewForm = async () => {
+  console.log('📋 [Preview] Starting preview process')
+
   // 預覽前確保資料同步（特別是 Markdown 模式）
   if (editorMode.value === 'markdown') {
     const parsed = parseMarkdownToForm(markdownContent.value)
@@ -735,6 +737,18 @@ const previewForm = () => {
     if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
       form.questions = parsed.questions
     }
+  }
+
+  // 確保資料已同步到資料庫再導航
+  persistFormToLocalStorage()
+
+  try {
+    console.log('📋 [Preview] Syncing to database before navigation...')
+    await syncFormToDB()
+    console.log('✅ [Preview] Sync complete, navigating to preview')
+  } catch (error) {
+    console.error('❌ [Preview] Sync failed, but continuing to preview:', error)
+    // 即使同步失敗也繼續導航，因為 localStorage 有資料
   }
 
   if ((form.displayMode ?? 'step-by-step') === 'all-at-once') {

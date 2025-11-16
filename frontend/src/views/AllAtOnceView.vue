@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, nextTick, type ComponentPublicInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
-import { api } from '@/services/api'
+import { api, formApi } from '@/services/api'
 
 // 題目類型定義（與 FillView.vue 對齊）
 type QuestionType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'rating' | 'range' | 'date' | 'file' | 'divider'
@@ -36,6 +36,7 @@ const route = useRoute()
 
 // 狀態
 const form = ref<Form | null>(null)
+const loading = ref(true)
 const responses = reactive<Map<string, string | string[]>>(new Map())
 const errors = reactive<Map<string, string>>(new Map())
 const isSubmitting = ref(false)
@@ -70,11 +71,27 @@ const progressPercent = computed(() => {
 })
 
 // 載入表單與草稿
-onMounted(() => {
+onMounted(async () => {
   const formId = route.params.id
   if (formId) {
-    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-    const savedForm = savedForms.find((f: any) => f.id === formId)
+    let savedForm = null
+
+    // 優先從資料庫載入
+    try {
+      const response = await formApi.getForm(formId as string)
+      if (response.success && response.form) {
+        savedForm = response.form
+      }
+    } catch (error) {
+      console.error('DB fetch failed, fallback to localStorage:', error)
+    }
+
+    // 如果資料庫沒有，從 localStorage 載入
+    if (!savedForm) {
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      savedForm = savedForms.find((f: any) => f.id === formId)
+    }
+
     if (savedForm) {
       form.value = savedForm
 
@@ -96,6 +113,9 @@ onMounted(() => {
       console.error('找不到問卷:', formId)
       // form 保持為 null，頁面會顯示找不到問卷的 UI 狀態
     }
+
+    // 載入完成
+    loading.value = false
   }
 })
 
@@ -462,6 +482,14 @@ const setQuestionRef = (qid: string) => (el: Element | ComponentPublicInstance |
           </div>
         </div>
       </main>
+    </div>
+
+    <!-- 載入中 -->
+    <div v-else-if="loading" class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center max-w-md">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p class="text-gray-600">載入中...</p>
+      </div>
     </div>
 
     <!-- 找不到問卷 -->

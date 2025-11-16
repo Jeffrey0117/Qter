@@ -50,6 +50,7 @@ interface Response {
 
 // 表單資料
 const form = ref<Form | null>(null)
+const loading = ref(true)
 const responses = reactive<Map<string, string | string[]>>(new Map())
 const currentQuestionIndex = ref(0)
 const errors = reactive<Map<string, string>>(new Map())
@@ -77,7 +78,7 @@ onMounted(async () => {
   const formId = route.params.id
   if (formId) {
     let savedForm = null
-    
+
     const demoData = localStorage.getItem(`qter_demo_${formId}`)
     if (demoData) {
       savedForm = JSON.parse(demoData)
@@ -90,13 +91,13 @@ onMounted(async () => {
       } catch (error) {
         console.error('DB fetch failed, fallback to localStorage:', error)
       }
-      
+
       if (!savedForm) {
         const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
         savedForm = savedForms.find((f: any) => f.id === formId)
       }
     }
-    
+
     if (savedForm) {
       form.value = savedForm
 
@@ -124,8 +125,11 @@ onMounted(async () => {
     } else {
       // 靜默處理，顯示頁面錯誤訊息而不是彈窗
       console.error('找不到問卷:', formId)
-      // form 保持為 null，頁面會顯示載入中狀態
+      // form 保持為 null，頁面會顯示錯誤狀態
     }
+
+    // 載入完成
+    loading.value = false
   }
 })
 
@@ -626,7 +630,15 @@ const handleFileUpload = (questionId: string, file: File) => {
       </main>
     </div>
 
-    <!-- 載入中或找不到問卷 -->
+    <!-- 載入中 -->
+    <div v-else-if="loading" class="min-h-screen flex items-center justify-center p-4">
+      <div class="text-center max-w-md">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p class="text-gray-600">載入中...</p>
+      </div>
+    </div>
+
+    <!-- 找不到問卷 -->
     <div v-else class="min-h-screen flex items-center justify-center p-4">
       <div class="text-center max-w-md">
         <div class="text-6xl mb-4">📋</div>
