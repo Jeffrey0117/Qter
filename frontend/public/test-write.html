@@ -19,8 +19,12 @@
 
   <div id="result"></div>
 
-  <script type="module">
+  <script>
     const result = document.getElementById('result')
+
+    // 直接硬編碼測試（因為 public HTML 無法訪問 import.meta.env）
+    const SUPABASE_URL = 'https://ihhucjcbhyakrenmpryh.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImloaHVjamNiaHlha3Jlbm1wcnloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMTk5MjksImV4cCI6MjA3ODc5NTkyOX0.lLn455Jg5iiW9JhfWS-nr__Np-z6H8lVHn4eI95rVUg'
 
     function log(msg, type = 'ok') {
       result.innerHTML += `<div class="${type}">${msg}</div>`
@@ -28,33 +32,12 @@
 
     window.testEnv = function() {
       result.innerHTML = '<h2>環境變數檢查</h2>'
-
-      const url = import.meta.env.VITE_SUPABASE_URL
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-      if (url) {
-        log(`✅ VITE_SUPABASE_URL = ${url}`, 'ok')
-      } else {
-        log(`❌ VITE_SUPABASE_URL 未設定`, 'error')
-      }
-
-      if (key) {
-        log(`✅ VITE_SUPABASE_ANON_KEY = ${key.substring(0, 30)}...`, 'ok')
-      } else {
-        log(`❌ VITE_SUPABASE_ANON_KEY 未設定`, 'error')
-      }
+      log(`✅ SUPABASE_URL = ${SUPABASE_URL}`, 'ok')
+      log(`✅ SUPABASE_KEY = ${SUPABASE_KEY.substring(0, 30)}...`, 'ok')
     }
 
     window.testWrite = async function() {
       result.innerHTML = '<h2>測試寫入</h2>'
-
-      const url = import.meta.env.VITE_SUPABASE_URL
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-      if (!url || !key) {
-        log('❌ 環境變數未設定', 'error')
-        return
-      }
 
       const testForm = {
         id: crypto.randomUUID(),
@@ -69,11 +52,11 @@
       log(`📝 準備寫入: ${testForm.id}`)
 
       try {
-        const response = await fetch(`${url}/rest/v1/forms`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/forms`, {
           method: 'POST',
           headers: {
-            'apikey': key,
-            'Authorization': `Bearer ${key}`,
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
             'Content-Type': 'application/json',
             'Prefer': 'return=representation'
           },
@@ -98,19 +81,11 @@
     window.testRead = async function() {
       result.innerHTML = '<h2>讀取資料庫</h2>'
 
-      const url = import.meta.env.VITE_SUPABASE_URL
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-      if (!url || !key) {
-        log('❌ 環境變數未設定', 'error')
-        return
-      }
-
       try {
-        const response = await fetch(`${url}/rest/v1/forms?select=id,title&order=created_at.desc&limit=5`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/forms?select=id,title&order=created_at.desc&limit=5`, {
           headers: {
-            'apikey': key,
-            'Authorization': `Bearer ${key}`
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`
           }
         })
 
