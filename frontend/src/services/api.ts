@@ -6,18 +6,13 @@ import type { Database } from '../types/database'
 export const formApi = {
   async getForms(): Promise<{ success: boolean; forms: Form[] }> {
     try {
-      const { data: session } = await supabase.auth.getSession()
-
-      // 離線模式：如果沒有 session，返回本地 localStorage 數據
-      if (!session?.session?.user) {
-        const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-        return { success: true, forms: localForms }
-      }
+      // 使用固定測試用戶 ID 查詢
+      const defaultUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 
       const { data, error } = await supabase
         .from('forms')
         .select('*')
-        .eq('user_id', session.session.user.id)
+        .eq('user_id', defaultUserId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -42,9 +37,7 @@ export const formApi = {
       return { success: true, forms }
     } catch (error) {
       console.error('getForms error:', error)
-      // 降級到本地數據
-      const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-      return { success: true, forms: localForms }
+      throw error
     }
   },
 
@@ -95,34 +88,23 @@ export const formApi = {
     allowGoBack?: boolean
   }): Promise<{ success: boolean; form: any }> {
     try {
-      const { data: session } = await supabase.auth.getSession()
-
-      // 離線模式：如果沒有 session，僅儲存到 localStorage
-      if (!session?.session?.user) {
-        const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-        const newForm = {
-          ...data,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-        localForms.push(newForm)
-        localStorage.setItem('qter_forms', JSON.stringify(localForms))
-        return { success: true, form: newForm }
-      }
+      // 使用固定測試用戶 ID（暫時方案，與 sync-form.html 一致）
+      const defaultUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
 
       // 轉換前端格式到資料庫欄位名稱
       const insertData = {
         id: data.id,
-        user_id: session.session.user.id,
+        user_id: defaultUserId,
         title: data.title,
         description: data.description || null,
         questions: data.questions as any,
-        display_mode: data.displayMode || 'classic',
+        display_mode: data.displayMode || 'step-by-step',
         markdown_content: data.markdownContent || null,
-        auto_advance: data.autoAdvance ?? false,
-        auto_advance_delay: data.autoAdvanceDelay ?? 3,
+        auto_advance: data.autoAdvance ?? true,
+        auto_advance_delay: data.autoAdvanceDelay ?? 300,
         show_progress: data.showProgress ?? true,
         allow_go_back: data.allowGoBack ?? true,
+        status: 'active',
       }
 
       const { data: result, error } = await supabase
@@ -131,21 +113,16 @@ export const formApi = {
         .select()
         .single<Database['public']['Tables']['forms']['Row']>()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase insert error:', error)
+        throw error
+      }
 
+      console.log('✅ Form created in database:', result.id)
       return { success: true, form: result }
     } catch (error) {
-      console.error('createForm error:', error)
-      // 降級到本地存儲
-      const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-      const newForm = {
-        ...data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-      localForms.push(newForm)
-      localStorage.setItem('qter_forms', JSON.stringify(localForms))
-      return { success: true, form: newForm }
+      console.error('❌ createForm failed:', error)
+      throw error
     }
   },
 
@@ -161,22 +138,6 @@ export const formApi = {
     allowGoBack?: boolean
   }): Promise<{ success: boolean }> {
     try {
-      const { data: session } = await supabase.auth.getSession()
-
-      // 離線模式：如果沒有 session，僅更新 localStorage
-      if (!session?.session?.user) {
-        const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-        const formIndex = localForms.findIndex((f: any) => f.id === id)
-        if (formIndex !== -1) {
-          localForms[formIndex] = {
-            ...localForms[formIndex],
-            ...data,
-            updatedAt: new Date().toISOString(),
-          }
-          localStorage.setItem('qter_forms', JSON.stringify(localForms))
-        }
-        return { success: true }
-      }
 
       // 轉換前端格式到資料庫欄位名稱
       const updateData: any = {}
@@ -196,53 +157,36 @@ export const formApi = {
         .update(updateData)
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase update error:', error)
+        throw error
+      }
 
+      console.log('✅ Form updated in database:', id)
       return { success: true }
     } catch (error) {
-      console.error('updateForm error:', error)
-      // 降級到本地存儲
-      const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-      const formIndex = localForms.findIndex((f: any) => f.id === id)
-      if (formIndex !== -1) {
-        localForms[formIndex] = {
-          ...localForms[formIndex],
-          ...data,
-          updatedAt: new Date().toISOString(),
-        }
-        localStorage.setItem('qter_forms', JSON.stringify(localForms))
-      }
-      return { success: true }
+      console.error('❌ updateForm failed:', error)
+      throw error
     }
   },
 
   async deleteForm(id: string): Promise<{ success: boolean }> {
     try {
-      const { data: session } = await supabase.auth.getSession()
-
-      // 離線模式：如果沒有 session，僅從 localStorage 刪除
-      if (!session?.session?.user) {
-        const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-        const filteredForms = localForms.filter((f: any) => f.id !== id)
-        localStorage.setItem('qter_forms', JSON.stringify(filteredForms))
-        return { success: true }
-      }
-
       const { error } = await supabase
         .from('forms')
         .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase delete error:', error)
+        throw error
+      }
 
+      console.log('✅ Form deleted from database:', id)
       return { success: true }
     } catch (error) {
-      console.error('deleteForm error:', error)
-      // 降級到本地存儲
-      const localForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-      const filteredForms = localForms.filter((f: any) => f.id !== id)
-      localStorage.setItem('qter_forms', JSON.stringify(filteredForms))
-      return { success: true }
+      console.error('❌ deleteForm failed:', error)
+      throw error
     }
   },
 
