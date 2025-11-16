@@ -48,6 +48,9 @@ const authStore = useAuthStore()
 
 const syncStatus = ref<'synced' | 'syncing' | 'local' | 'error'>('local')
 
+// 🔥 新增：資料載入狀態標記，防止 watch 在載入前觸發自動保存
+const isDataLoaded = ref(false)
+
 // 表單資料
 const form = reactive<Form>({
   id: route.params.id as string || 'new',
@@ -62,19 +65,29 @@ const form = reactive<Form>({
   allowGoBack: true,
 })
 
-// 設定變更即時儲存
+// 設定變更即時儲存 - 🔥 只在資料載入完成後才觸發
 watch(
   () => [form.autoAdvance, form.autoAdvanceDelay, form.showProgress, form.allowGoBack, form.displayMode],
   () => {
+    if (!isDataLoaded.value) {
+      console.log('⏸️ [Watch] Skipping auto-save: data not loaded yet')
+      return
+    }
+    console.log('💾 [Watch] Settings changed, auto-saving...')
     persistFormToLocalStorage()
   },
   { deep: false }
 )
 
-// 表單內容變更自動儲存
+// 表單內容變更自動儲存 - 🔥 只在資料載入完成後才觸發
 watch(
   () => [form.title, form.description, form.questions],
   () => {
+    if (!isDataLoaded.value) {
+      console.log('⏸️ [Watch] Skipping auto-save: data not loaded yet')
+      return
+    }
+    console.log('💾 [Watch] Content changed, auto-saving...')
     persistFormToLocalStorage()
   },
   { deep: true }
@@ -886,9 +899,18 @@ onMounted(async () => {
 
       // 標記為已同步（因為剛從 DB 載入）
       syncStatus.value = 'synced'
+
+      // 🔥 資料載入完成，啟用自動保存
+      console.log('✅ [Editor] Data loaded, enabling auto-save')
+      isDataLoaded.value = true
     } else {
       console.error('❌ [Editor] Form not found in DB or localStorage:', route.params.id)
+      // 即使找不到表單，也要啟用 watch（讓用戶可以創建新問卷）
+      isDataLoaded.value = true
     }
+  } else {
+    // 新問卷，啟用自動保存
+    isDataLoaded.value = true
   }
 })
 
