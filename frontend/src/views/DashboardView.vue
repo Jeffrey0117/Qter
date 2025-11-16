@@ -215,7 +215,7 @@ const loadForms = async () => {
 
 const createNewForm = () => {
   // 建立新問卷並導向編輯器
-  const newFormId = Date.now().toString()
+  const newFormId = crypto.randomUUID()
   router.push(`/editor/${newFormId}`)
 }
 

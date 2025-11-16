@@ -190,10 +190,10 @@ const copyDemoAsTemplate = (id: string) => {
     router.push('/login')
     return
   }
-  
+
   const demoForm = forms.value.find(f => f.id === id)
   if (demoForm) {
-    const newId = `copy_${Date.now()}`
+    const newId = crypto.randomUUID()
     const newForm = {
       ...demoForm,
       id: newId,
@@ -202,11 +202,11 @@ const copyDemoAsTemplate = (id: string) => {
       createdAt: new Date(),
       featured: false
     }
-    
+
     const existing = JSON.parse(localStorage.getItem('qter_forms') || '[]')
     existing.push(newForm)
     localStorage.setItem('qter_forms', JSON.stringify(existing))
-    
+
     router.push(`/editor/${newId}`)
   }
 }
