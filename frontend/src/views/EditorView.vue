@@ -610,6 +610,9 @@ function persistFormToLocalStorage() {
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
   // 🔥 確保正確序列化 reactive 對象，明確列出所有屬性
+  const now = new Date().toISOString()
+  const existingForm = existingIndex !== -1 ? savedForms[existingIndex] : null
+
   const toSave = {
     id: form.id,
     title: form.title,
@@ -623,8 +626,8 @@ function persistFormToLocalStorage() {
     markdownContent: editorMode.value === 'markdown'
       ? markdownContent.value
       : generateMarkdownFromForm(form),
-    createdAt: new Date().toISOString(), // 添加時間戳
-    updatedAt: new Date().toISOString()
+    createdAt: existingForm?.createdAt || now, // 保留原始創建時間
+    updatedAt: now // 更新修改時間
   }
 
   console.log('💾 Saving form with', toSave.questions.length, 'questions')
