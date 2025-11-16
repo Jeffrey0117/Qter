@@ -76,6 +76,12 @@ onMounted(async () => {
   if (formId) {
     let savedForm = null
 
+    // 🔥 臨時改為只從 localStorage 載入，避免資料庫 UUID 問題
+    console.log('🔍 [AllAtOnce] Loading form from localStorage (DB sync disabled)')
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    savedForm = savedForms.find((f: any) => f.id === formId)
+
+    /* 暫時註解掉資料庫載入
     // 優先從資料庫載入
     try {
       const response = await formApi.getForm(formId as string)
@@ -91,6 +97,7 @@ onMounted(async () => {
       const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
       savedForm = savedForms.find((f: any) => f.id === formId)
     }
+    */
 
     if (savedForm) {
       form.value = savedForm
