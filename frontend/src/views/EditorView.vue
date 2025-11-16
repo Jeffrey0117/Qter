@@ -548,6 +548,13 @@ const handleDragEnd = () => {
 async function syncFormToDB() {
   console.log('🔍 syncFormToDB called')
 
+  // 🔥 臨時禁用資料庫同步 - 等待資料庫 migration 完成
+  console.log('⏸️ Database sync temporarily disabled (UUID type conflict)')
+  console.log('💾 Using localStorage only for now')
+  syncStatus.value = 'local'
+  return true
+
+  /* 暫時註解掉資料庫同步，等 SQL migration 執行完再啟用
   try {
     syncStatus.value = 'syncing'
 
@@ -593,6 +600,7 @@ async function syncFormToDB() {
     syncStatus.value = 'error'
     throw error  // 不要靜默吞掉錯誤
   }
+  */
 }
 
 function persistFormToLocalStorage() {
@@ -846,6 +854,17 @@ onMounted(async () => {
   if (route.params.id && route.params.id !== 'new') {
     let savedForm = null
 
+    // 🔥 臨時改為只從 localStorage 載入，避免資料庫 UUID 問題
+    console.log('🔍 [Editor] Loading form from localStorage (DB sync disabled)')
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    savedForm = savedForms.find((f: any) => f.id === route.params.id)
+    if (savedForm) {
+      console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
+    } else {
+      console.log('⚠️ [Editor] Form not found in localStorage')
+    }
+
+    /* 暫時註解掉資料庫載入，等 SQL migration 執行完再啟用
     // 🔥 修復：優先從資料庫載入表單（與 FillView 一致）
     console.log('🔍 [Editor] Loading form from database first:', route.params.id)
     try {
@@ -867,6 +886,7 @@ onMounted(async () => {
         console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
       }
     }
+    */
 
     if (savedForm) {
       Object.assign(form, savedForm)
