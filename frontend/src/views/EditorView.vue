@@ -604,26 +604,39 @@ async function syncFormToDB() {
 }
 
 function persistFormToLocalStorage() {
-  console.log('💾 persistFormToLocalStorage called')
+  console.log('💾 persistFormToLocalStorage called for form:', form.id)
 
   const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
   const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
+  // 🔥 確保正確序列化 reactive 對象，明確列出所有屬性
   const toSave = {
-    ...form,
+    id: form.id,
+    title: form.title,
+    description: form.description,
+    questions: JSON.parse(JSON.stringify(form.questions)), // 深拷貝避免 reactive 問題
+    displayMode: form.displayMode,
+    autoAdvance: form.autoAdvance,
+    autoAdvanceDelay: form.autoAdvanceDelay,
+    showProgress: form.showProgress,
+    allowGoBack: form.allowGoBack,
     markdownContent: editorMode.value === 'markdown'
       ? markdownContent.value
       : generateMarkdownFromForm(form)
   }
 
+  console.log('💾 Saving form with', toSave.questions.length, 'questions')
+
   if (existingIndex !== -1) {
     savedForms[existingIndex] = toSave
+    console.log('💾 Updated existing form at index', existingIndex)
   } else {
     savedForms.push(toSave)
+    console.log('💾 Added new form to localStorage')
   }
 
   localStorage.setItem('qter_forms', JSON.stringify(savedForms))
-  console.log('💾 Saved to localStorage:', form.id)
+  console.log('✅ Saved to localStorage:', form.id, 'Total forms:', savedForms.length)
 
   // 自動同步到資料庫 - 不要靜默吞掉錯誤
   syncFormToDB().catch((error) => {
