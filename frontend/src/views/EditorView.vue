@@ -51,6 +51,17 @@ const syncStatus = ref<'synced' | 'syncing' | 'local' | 'error'>('local')
 // 🔥 新增：資料載入狀態標記，防止 watch 在載入前觸發自動保存
 const isDataLoaded = ref(false)
 
+// 🔥 防止快速連續保存導致資料覆蓋
+let saveTimeout: NodeJS.Timeout | null = null
+const debouncedSave = () => {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout)
+  }
+  saveTimeout = setTimeout(() => {
+    persistFormToLocalStorage()
+  }, 1000) // 1 秒內的多次變更只保存一次
+}
+
 // 表單資料
 const form = reactive<Form>({
   id: route.params.id as string || 'new',
@@ -65,7 +76,7 @@ const form = reactive<Form>({
   allowGoBack: true,
 })
 
-// 設定變更即時儲存 - 🔥 只在資料載入完成後才觸發
+// 設定變更即時儲存 - 🔥 只在資料載入完成後才觸發，使用 debounce
 watch(
   () => [form.autoAdvance, form.autoAdvanceDelay, form.showProgress, form.allowGoBack, form.displayMode],
   () => {
@@ -73,13 +84,13 @@ watch(
       console.log('⏸️ [Watch] Skipping auto-save: data not loaded yet')
       return
     }
-    console.log('💾 [Watch] Settings changed, auto-saving...')
-    persistFormToLocalStorage()
+    console.log('💾 [Watch] Settings changed, debouncing save...')
+    debouncedSave()
   },
   { deep: false }
 )
 
-// 表單內容變更自動儲存 - 🔥 只在資料載入完成後才觸發
+// 表單內容變更自動儲存 - 🔥 只在資料載入完成後才觸發，使用 debounce
 watch(
   () => [form.title, form.description, form.questions],
   () => {
@@ -87,8 +98,8 @@ watch(
       console.log('⏸️ [Watch] Skipping auto-save: data not loaded yet')
       return
     }
-    console.log('💾 [Watch] Content changed, auto-saving...')
-    persistFormToLocalStorage()
+    console.log('💾 [Watch] Content changed, debouncing save...')
+    debouncedSave()
   },
   { deep: true }
 )
