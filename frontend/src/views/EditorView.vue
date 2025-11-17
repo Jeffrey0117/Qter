@@ -53,12 +53,18 @@ const isDataLoaded = ref(false)
 
 // 🔥 防止快速連續保存導致資料覆蓋
 let saveTimeout: NodeJS.Timeout | null = null
+let isSaving = false // 保存鎖，防止並發保存
+
 const debouncedSave = () => {
   if (saveTimeout) {
     clearTimeout(saveTimeout)
   }
   saveTimeout = setTimeout(() => {
-    persistFormToLocalStorage()
+    if (!isSaving) {
+      persistFormToLocalStorage()
+    } else {
+      console.log('⏸️ [Save] Another save in progress, skipping')
+    }
   }, 1000) // 1 秒內的多次變更只保存一次
 }
 
@@ -608,50 +614,63 @@ async function syncFormToDB() {
 }
 
 function persistFormToLocalStorage() {
+  if (isSaving) {
+    console.log('⏸️ [Save] Already saving, skipping this call')
+    return
+  }
+
+  isSaving = true
   console.log('💾 persistFormToLocalStorage called for form:', form.id)
 
-  const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
-  const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
+  try {
+    const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+    const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
-  // 🔥 確保正確序列化 reactive 對象，明確列出所有屬性
-  const now = new Date().toISOString()
-  const existingForm = existingIndex !== -1 ? savedForms[existingIndex] : null
+    // 🔥 確保正確序列化 reactive 對象，明確列出所有屬性
+    const now = new Date().toISOString()
+    const existingForm = existingIndex !== -1 ? savedForms[existingIndex] : null
 
-  const toSave = {
-    id: form.id,
-    title: form.title,
-    description: form.description,
-    questions: JSON.parse(JSON.stringify(form.questions)), // 深拷貝避免 reactive 問題
-    displayMode: form.displayMode,
-    autoAdvance: form.autoAdvance,
-    autoAdvanceDelay: form.autoAdvanceDelay,
-    showProgress: form.showProgress,
-    allowGoBack: form.allowGoBack,
-    markdownContent: editorMode.value === 'markdown'
-      ? markdownContent.value
-      : generateMarkdownFromForm(form),
-    createdAt: existingForm?.createdAt || now, // 保留原始創建時間
-    updatedAt: now // 更新修改時間
+    const toSave = {
+      id: form.id,
+      title: form.title,
+      description: form.description,
+      questions: JSON.parse(JSON.stringify(form.questions)), // 深拷貝避免 reactive 問題
+      displayMode: form.displayMode,
+      autoAdvance: form.autoAdvance,
+      autoAdvanceDelay: form.autoAdvanceDelay,
+      showProgress: form.showProgress,
+      allowGoBack: form.allowGoBack,
+      markdownContent: editorMode.value === 'markdown'
+        ? markdownContent.value
+        : generateMarkdownFromForm(form),
+      createdAt: existingForm?.createdAt || now, // 保留原始創建時間
+      updatedAt: now // 更新修改時間
+    }
+
+    console.log('💾 Saving form with', toSave.questions.length, 'questions')
+
+    if (existingIndex !== -1) {
+      savedForms[existingIndex] = toSave
+      console.log('💾 Updated existing form at index', existingIndex)
+    } else {
+      savedForms.push(toSave)
+      console.log('💾 Added new form to localStorage')
+    }
+
+    localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+    console.log('✅ Saved to localStorage:', form.id, 'Total forms:', savedForms.length)
+
+    // 自動同步到資料庫 - 不要靜默吞掉錯誤
+    syncFormToDB().catch((error) => {
+      console.error('❌ Auto-sync failed:', error)
+      // 錯誤已經被 syncFormToDB 內部處理，這裡只是確保不會中斷執行
+    }).finally(() => {
+      isSaving = false
+    })
+  } catch (error) {
+    console.error('❌ [Save] Failed to save:', error)
+    isSaving = false
   }
-
-  console.log('💾 Saving form with', toSave.questions.length, 'questions')
-
-  if (existingIndex !== -1) {
-    savedForms[existingIndex] = toSave
-    console.log('💾 Updated existing form at index', existingIndex)
-  } else {
-    savedForms.push(toSave)
-    console.log('💾 Added new form to localStorage')
-  }
-
-  localStorage.setItem('qter_forms', JSON.stringify(savedForms))
-  console.log('✅ Saved to localStorage:', form.id, 'Total forms:', savedForms.length)
-
-  // 自動同步到資料庫 - 不要靜默吞掉錯誤
-  syncFormToDB().catch((error) => {
-    console.error('❌ Auto-sync failed:', error)
-    // 錯誤已經被 syncFormToDB 內部處理，這裡只是確保不會中斷執行
-  })
 }
 
 const saveForm = async () => {
