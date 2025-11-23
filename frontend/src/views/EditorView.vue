@@ -280,9 +280,13 @@ const draggedQuestion = ref<Question | null>(null)
 
   // 從 Markdown 解析表單
  const parseMarkdownToForm = (markdown: string): Form => {
+   console.log('🔍 [parseMarkdown] Starting to parse markdown, length:', markdown.length)
    // 先移除 <style>...</style> 區塊，避免干擾題目解析
    const mdNoStyle = markdown.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+   console.log('🔍 [parseMarkdown] After removing style tags, length:', mdNoStyle.length)
+   console.log('📝 [parseMarkdown] Markdown preview:', mdNoStyle.substring(0, 500))
    const lines = mdNoStyle.split('\n')
+   console.log('🔍 [parseMarkdown] Split into', lines.length, 'lines')
    let currentForm: Partial<Form> = {
      title: '未命名問卷',
      description: '',
@@ -331,6 +335,7 @@ const draggedQuestion = ref<Question | null>(null)
     // Question title (starts with ###) + 可選 class 標記：### 標題 {.class1 class2}
     if (line.startsWith('### ')) {
       if (currentQuestion) {
+        console.log('🔍 [parseMarkdown] Pushing previous question:', currentQuestion.title)
         currentForm.questions!.push(currentQuestion as Question)
       }
       // 萃取可選的 {.class}
@@ -338,6 +343,7 @@ const draggedQuestion = ref<Question | null>(null)
       const title = m ? m[1] : line.substring(4)
       const className = m && m[2] ? m[2].trim() : undefined
 
+      console.log('🔍 [parseMarkdown] Found new question:', title)
       currentQuestion = {
         id: generateHash(),
         title,
@@ -380,17 +386,22 @@ const draggedQuestion = ref<Question | null>(null)
       }
     }
   }
-  
+
   // Add last question
   if (currentQuestion) {
+    console.log('🔍 [parseMarkdown] Pushing last question:', currentQuestion.title)
     currentForm.questions!.push(currentQuestion as Question)
   }
-  
+
+  console.log('✅ [parseMarkdown] Finished parsing, total questions:', currentForm.questions!.length)
+  console.log('✅ [parseMarkdown] Questions:', currentForm.questions!.map(q => q.title))
   return currentForm as Form
 }
 
  // 從表單生成 Markdown
 const generateMarkdownFromForm = (form: Form): string => {
+  console.log('🔧 [generateMarkdown] Generating markdown from', form.questions.length, 'questions')
+
   let markdown = `---
 title: ${form.title}
 description: ${form.description}
@@ -399,6 +410,7 @@ description: ${form.description}
 `
 
   form.questions.forEach((question, index) => {
+    console.log(`🔧 [generateMarkdown] Processing question ${index + 1}/${form.questions.length}:`, question.title)
     const cls = question.className ? ` {.${question.className}}` : ''
     markdown += `### ${question.title}${cls}\n`
     markdown += `type: ${question.type}\n`
@@ -420,6 +432,8 @@ description: ${form.description}
     }
   })
 
+  console.log('✅ [generateMarkdown] Generated markdown with', form.questions.length, 'questions')
+  console.log('📝 [generateMarkdown] Markdown preview:', markdown.substring(0, 500))
   return markdown
 }
 
