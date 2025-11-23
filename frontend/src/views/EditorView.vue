@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { buildAndApplyMarkdown, sanitizeHTMLFragment } from '@/services/markdown'
 import { formApi } from '@/services/api'
@@ -51,8 +51,12 @@ const syncStatus = ref<'synced' | 'syncing' | 'local' | 'error'>('local')
 // 🔥 新增：資料載入狀態標記，防止 watch 在載入前觸發自動保存
 const isDataLoaded = ref(false)
 
+// 🔥 新增：記錄初始題目數量，用於檢測資料丟失
+let initialQuestionsCount = 0
+let isFirstSaveAfterLoad = true // 標記是否為載入後的第一次保存
+
 // 🔥 防止快速連續保存導致資料覆蓋
-let saveTimeout: NodeJS.Timeout | null = null
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
 let isSaving = false // 保存鎖，防止並發保存
 
 const debouncedSave = () => {
@@ -60,6 +64,13 @@ const debouncedSave = () => {
     clearTimeout(saveTimeout)
   }
   saveTimeout = setTimeout(() => {
+    // 🔥 新增：跳過載入後的第一次保存
+    if (isFirstSaveAfterLoad) {
+      console.log('⏸️ [Save] Skipping first save after load (no real changes)')
+      isFirstSaveAfterLoad = false
+      return
+    }
+
     if (!isSaving) {
       persistFormToLocalStorage()
     } else {
@@ -414,10 +425,30 @@ description: ${form.description}
 
 // 同步 Markdown 和視覺編輯器
 const syncMarkdownToVisual = () => {
+  console.log('🔄 [Sync MD->Visual] Starting sync from Markdown to Visual')
+  console.log('🔄 [Sync MD->Visual] Current questions count:', form.questions.length)
+
   const parsedForm = parseMarkdownToForm(markdownContent.value)
+
+  console.log('🔄 [Sync MD->Visual] Parsed questions count:', parsedForm.questions.length)
+
+  // 🔥 檢查是否會丟失題目
+  if (initialQuestionsCount > 0 && parsedForm.questions.length < initialQuestionsCount) {
+    console.warn('⚠️ [Sync MD->Visual] WARNING: Parsed questions count is less than initial count')
+    console.warn('⚠️ [Sync MD->Visual] Initial:', initialQuestionsCount, 'Parsed:', parsedForm.questions.length)
+  }
+
   form.title = parsedForm.title
   form.description = parsedForm.description
   form.questions = parsedForm.questions
+
+  console.log('🔄 [Sync MD->Visual] After sync, questions count:', form.questions.length)
+
+  // 🔥 同步後更新初始題目數量
+  if (isDataLoaded.value) {
+    initialQuestionsCount = form.questions.length
+    console.log('📊 [Sync MD->Visual] Updated initial questions count:', initialQuestionsCount)
+  }
 }
 
 const syncVisualToMarkdown = () => {
@@ -439,6 +470,9 @@ const toggleEditorMode = () => {
 
 // 新增題目
 const addQuestion = (type: QuestionType) => {
+  console.log('➕ [Add Question] Adding question of type:', type)
+  console.log('➕ [Add Question] Current questions count:', form.questions.length)
+
   const newQuestion: Question = {
     id: generateHash(),
     type,
@@ -453,7 +487,15 @@ const addQuestion = (type: QuestionType) => {
   }
   form.questions.push(newQuestion)
   editingQuestionId.value = newQuestion.id
-  
+
+  console.log('➕ [Add Question] After adding, questions count:', form.questions.length)
+
+  // 🔥 更新初始題目數量（這是正常的操作）
+  if (isDataLoaded.value) {
+    initialQuestionsCount = form.questions.length
+    console.log('📊 [Add Question] Updated initial questions count:', initialQuestionsCount)
+  }
+
   // 如果在 Markdown 模式，同步更新
   if (editorMode.value === 'markdown') {
     syncVisualToMarkdown()
@@ -462,19 +504,36 @@ const addQuestion = (type: QuestionType) => {
 
 // 刪除題目
 const deleteQuestion = (id: string) => {
+  console.log('🗑️ [Delete Question] Deleting question:', id)
+  console.log('🗑️ [Delete Question] Current questions count:', form.questions.length)
+
   const index = form.questions.findIndex(q => q.id === id)
   if (index !== -1) {
+    const deletedQuestion = form.questions[index]
+    console.log('🗑️ [Delete Question] Deleting question:', deletedQuestion.title)
     form.questions.splice(index, 1)
-    
+    console.log('🗑️ [Delete Question] After deletion, questions count:', form.questions.length)
+
+    // 🔥 更新初始題目數量（這是正常的操作）
+    if (isDataLoaded.value) {
+      initialQuestionsCount = form.questions.length
+      console.log('📊 [Delete Question] Updated initial questions count:', initialQuestionsCount)
+    }
+
     // 如果在 Markdown 模式，同步更新
     if (editorMode.value === 'markdown') {
       syncVisualToMarkdown()
     }
+  } else {
+    console.warn('⚠️ [Delete Question] Question not found:', id)
   }
 }
 
 // 複製題目
 const duplicateQuestion = (question: Question) => {
+  console.log('📋 [Duplicate Question] Duplicating question:', question.title)
+  console.log('📋 [Duplicate Question] Current questions count:', form.questions.length)
+
   const newQuestion: Question = {
     ...question,
     id: generateHash(),
@@ -485,7 +544,15 @@ const duplicateQuestion = (question: Question) => {
   }
   const index = form.questions.findIndex(q => q.id === question.id)
   form.questions.splice(index + 1, 0, newQuestion)
-  
+
+  console.log('📋 [Duplicate Question] After duplication, questions count:', form.questions.length)
+
+  // 🔥 更新初始題目數量（這是正常的操作）
+  if (isDataLoaded.value) {
+    initialQuestionsCount = form.questions.length
+    console.log('📊 [Duplicate Question] Updated initial questions count:', initialQuestionsCount)
+  }
+
   // 如果在 Markdown 模式，同步更新
   if (editorMode.value === 'markdown') {
     syncVisualToMarkdown()
@@ -564,6 +631,7 @@ const handleDragEnd = () => {
 
 async function syncFormToDB() {
   console.log('🔍 syncFormToDB called')
+  console.log('🔍 [Sync] Current questions count before sync:', form.questions.length)
 
   try {
     syncStatus.value = 'syncing'
@@ -583,7 +651,12 @@ async function syncFormToDB() {
       allowGoBack: form.allowGoBack,
     }
 
-    console.log('📝 Form data:', formData)
+    console.log('📝 Form data to sync:', {
+      id: formData.id,
+      title: formData.title,
+      questionsCount: formData.questions.length,
+      questions: formData.questions.map(q => ({ id: q.id, title: q.title }))
+    })
 
     // 總是先嘗試創建（使用 upsert），如果已存在則自動更新
     try {
@@ -621,8 +694,17 @@ function persistFormToLocalStorage() {
 
   isSaving = true
   console.log('💾 persistFormToLocalStorage called for form:', form.id)
+  console.log('💾 Current questions count:', form.questions.length, 'Initial count:', initialQuestionsCount)
 
   try {
+    // 🔥 新增：檢查題目數量是否減少
+    if (initialQuestionsCount > 0 && form.questions.length < initialQuestionsCount) {
+      console.warn('⚠️ [Save] WARNING: Questions count decreased from', initialQuestionsCount, 'to', form.questions.length)
+      console.warn('⚠️ [Save] This might indicate data loss. Please check the data flow.')
+      // 記錄詳細資訊以便除錯
+      console.warn('⚠️ [Save] Current questions:', JSON.stringify(form.questions.map(q => ({ id: q.id, title: q.title }))))
+    }
+
     const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
     const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
 
@@ -901,7 +983,12 @@ onMounted(async () => {
       const response = await formApi.getForm(route.params.id as string)
       if (response.success && response.form) {
         savedForm = response.form
-        console.log('✅ [Editor] Loaded from database:', savedForm.id, savedForm.title)
+        console.log('✅ [Editor] Loaded from database:', {
+          id: savedForm.id,
+          title: savedForm.title,
+          questionsCount: savedForm.questions?.length || 0,
+          questions: savedForm.questions?.map((q: any) => ({ id: q.id, title: q.title })) || []
+        })
       }
     } catch (error) {
       console.error('⚠️ [Editor] DB fetch failed, fallback to localStorage:', error)
@@ -913,7 +1000,12 @@ onMounted(async () => {
       const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
       savedForm = savedForms.find((f: any) => f.id === route.params.id)
       if (savedForm) {
-        console.log('✅ [Editor] Loaded from localStorage:', savedForm.id, savedForm.title)
+        console.log('✅ [Editor] Loaded from localStorage:', {
+          id: savedForm.id,
+          title: savedForm.title,
+          questionsCount: savedForm.questions?.length || 0,
+          questions: savedForm.questions?.map((q: any) => ({ id: q.id, title: q.title })) || []
+        })
       }
     }
 
@@ -932,6 +1024,14 @@ onMounted(async () => {
         const parsed = parseMarkdownToForm(markdownContent.value)
         parsed.id = form.id
         parsed.displayMode = form.displayMode
+
+        // 🔥 檢查 markdown 解析後的題目數量是否與保存的資料一致
+        if (parsed.questions.length !== form.questions.length) {
+          console.warn('⚠️ [Editor] WARNING: Markdown parsed questions count differs from saved data')
+          console.warn('⚠️ [Editor] Saved questions:', form.questions.length, 'Parsed from markdown:', parsed.questions.length)
+          console.warn('⚠️ [Editor] This may indicate data inconsistency!')
+        }
+
         if (parsed.title && parsed.title !== '未命名問卷') {
           form.title = parsed.title
         }
@@ -940,11 +1040,48 @@ onMounted(async () => {
         }
         if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
           form.questions = parsed.questions
+          console.log('📝 [Editor] Applied parsed questions from markdown:', parsed.questions.length, 'questions')
+        } else {
+          console.warn('⚠️ [Editor] No valid questions parsed from markdown, keeping saved questions')
         }
       } else {
         // 若沒有存 markdownContent，則用現有表單生成一次，並填入 markdownContent
         markdownContent.value = generateMarkdownFromForm(form)
       }
+
+      // 🔥 記錄初始題目數量
+      initialQuestionsCount = form.questions.length
+      console.log('📊 [Editor] Initial questions count:', initialQuestionsCount)
+
+      // 🔥 立即同步到 localStorage 確保一致性
+      console.log('🔄 [Editor] Syncing loaded data to localStorage for consistency')
+      const savedForms = JSON.parse(localStorage.getItem('qter_forms') || '[]')
+      const existingIndex = savedForms.findIndex((f: any) => f.id === form.id)
+      const now = new Date().toISOString()
+
+      const toSync = {
+        id: form.id,
+        title: form.title,
+        description: form.description,
+        questions: JSON.parse(JSON.stringify(form.questions)),
+        displayMode: form.displayMode,
+        autoAdvance: form.autoAdvance,
+        autoAdvanceDelay: form.autoAdvanceDelay,
+        showProgress: form.showProgress,
+        allowGoBack: form.allowGoBack,
+        markdownContent: markdownContent.value,
+        createdAt: savedForm.createdAt || now,
+        updatedAt: savedForm.updatedAt || now
+      }
+
+      if (existingIndex !== -1) {
+        savedForms[existingIndex] = toSync
+      } else {
+        savedForms.push(toSync)
+      }
+
+      localStorage.setItem('qter_forms', JSON.stringify(savedForms))
+      console.log('✅ [Editor] Data synced to localStorage with', toSync.questions.length, 'questions')
 
       // 標記為已同步（因為剛從 DB 載入）
       syncStatus.value = 'synced'
@@ -952,6 +1089,7 @@ onMounted(async () => {
       // 🔥 資料載入完成，啟用自動保存
       console.log('✅ [Editor] Data loaded, enabling auto-save')
       isDataLoaded.value = true
+      isFirstSaveAfterLoad = true // 重置第一次保存標記
     } else {
       console.error('❌ [Editor] Form not found in localStorage:', route.params.id)
       console.log('🆕 [Editor] Creating new form with ID:', route.params.id)
