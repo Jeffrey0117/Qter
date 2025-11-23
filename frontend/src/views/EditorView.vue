@@ -1018,34 +1018,33 @@ onMounted(async () => {
       if (typeof form.showProgress === 'undefined') form.showProgress = true
       if (typeof form.allowGoBack === 'undefined') form.allowGoBack = true
 
+      // 🔥 修復：信任資料庫的 questions 欄位作為真實資料來源
+      // markdown 只用於編輯器顯示，不應該覆蓋資料庫的正確資料
       if (savedForm.markdownContent && typeof savedForm.markdownContent === 'string') {
         markdownContent.value = savedForm.markdownContent
-        // 以 markdownContent 作為真實來源解析，同步到視覺資料（有提供才覆蓋）
-        const parsed = parseMarkdownToForm(markdownContent.value)
-        parsed.id = form.id
-        parsed.displayMode = form.displayMode
 
-        // 🔥 檢查 markdown 解析後的題目數量是否與保存的資料一致
+        // 驗證 markdown 是否與 questions 一致
+        const parsed = parseMarkdownToForm(markdownContent.value)
         if (parsed.questions.length !== form.questions.length) {
-          console.warn('⚠️ [Editor] WARNING: Markdown parsed questions count differs from saved data')
-          console.warn('⚠️ [Editor] Saved questions:', form.questions.length, 'Parsed from markdown:', parsed.questions.length)
-          console.warn('⚠️ [Editor] This may indicate data inconsistency!')
+          console.warn('⚠️ [Editor] Markdown and questions mismatch!')
+          console.warn('⚠️ [Editor] DB questions:', form.questions.length, 'Markdown parsed:', parsed.questions.length)
+          console.warn('⚠️ [Editor] Regenerating markdown from database questions...')
+          // 從資料庫的 questions 重新生成 markdown
+          markdownContent.value = generateMarkdownFromForm(form)
         }
 
+        // 只更新 title 和 description（如果 markdown 有提供且有效）
         if (parsed.title && parsed.title !== '未命名問卷') {
           form.title = parsed.title
         }
         if (typeof parsed.description === 'string' && parsed.description.trim().length > 0) {
           form.description = parsed.description
         }
-        if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          form.questions = parsed.questions
-          console.log('📝 [Editor] Applied parsed questions from markdown:', parsed.questions.length, 'questions')
-        } else {
-          console.warn('⚠️ [Editor] No valid questions parsed from markdown, keeping saved questions')
-        }
+
+        console.log('✅ [Editor] Keeping database questions (', form.questions.length, 'questions) as source of truth')
       } else {
         // 若沒有存 markdownContent，則用現有表單生成一次，並填入 markdownContent
+        console.log('📝 [Editor] No markdown found, generating from questions...')
         markdownContent.value = generateMarkdownFromForm(form)
       }
 
