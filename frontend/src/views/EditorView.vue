@@ -1345,117 +1345,227 @@ const getQuestionTypeName = (type: QuestionType) => {
     <!-- 視覺編輯器模式 -->
     <main v-else class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- 表單描述 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <textarea
-          v-model="form.description"
-          class="w-full resize-none border-0 focus:ring-0 text-gray-600"
-          rows="2"
-          placeholder="新增表單描述（選填）"
-        />
-        <div class="mt-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">展示模式</label>
-          <div class="flex items-center gap-4">
-            <label class="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                class="text-blue-600"
-                :checked="(form.displayMode ?? 'step-by-step') === 'step-by-step'"
-                @change="form.displayMode = 'step-by-step'"
-              />
-              <span class="text-sm text-gray-700">單題模式</span>
-            </label>
-            <label class="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                class="text-blue-600"
-                :checked="form.displayMode === 'all-at-once'"
-                @change="form.displayMode = 'all-at-once'"
-              />
-              <span class="text-sm text-gray-700">全頁模式</span>
-            </label>
-          </div>
-          <p class="text-xs text-gray-500 mt-1">
-            單題模式：一次顯示一題；全頁模式：所有題目一次展開，提交時整體驗證。
-          </p>
+      <div class="mb-8">
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
+          <label class="block text-sm font-medium text-gray-700 mb-3">問卷描述</label>
+          <textarea
+            v-model="form.description"
+            class="w-full resize-none border-0 bg-white/80 backdrop-blur rounded-lg px-4 py-3 text-gray-600 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            rows="2"
+            placeholder="描述您的問卷目的，讓填寫者了解這份問卷的用途..."
+          />
+        </div>
+      </div>
+
+      <!-- 顯示模式選擇 -->
+      <div class="mb-8">
+        <h3 class="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>顯示模式</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- 單題模式卡片 -->
+          <button
+            @click="form.displayMode = 'step-by-step'"
+            :class="[
+              'relative p-5 rounded-xl border-2 transition-all cursor-pointer group',
+              (form.displayMode ?? 'step-by-step') === 'step-by-step'
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+            ]"
+          >
+            <div class="flex items-start gap-3">
+              <div :class="[
+                'w-10 h-10 rounded-lg flex items-center justify-center text-lg',
+                (form.displayMode ?? 'step-by-step') === 'step-by-step'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+              ]">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3 16a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/>
+                </svg>
+              </div>
+              <div class="flex-1 text-left">
+                <h4 :class="[
+                  'font-semibold mb-1',
+                  (form.displayMode ?? 'step-by-step') === 'step-by-step'
+                    ? 'text-blue-900'
+                    : 'text-gray-900'
+                ]">單題模式</h4>
+                <p :class="[
+                  'text-xs leading-relaxed',
+                  (form.displayMode ?? 'step-by-step') === 'step-by-step'
+                    ? 'text-blue-700'
+                    : 'text-gray-500'
+                ]">一次顯示一個問題，適合引導式填寫，減少干擾</p>
+              </div>
+            </div>
+            <!-- 選中指示器 -->
+            <div v-if="(form.displayMode ?? 'step-by-step') === 'step-by-step'"
+                 class="absolute top-3 right-3 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+          </button>
+
+          <!-- 全頁模式卡片 -->
+          <button
+            @click="form.displayMode = 'all-at-once'"
+            :class="[
+              'relative p-5 rounded-xl border-2 transition-all cursor-pointer group',
+              form.displayMode === 'all-at-once'
+                ? 'border-blue-500 bg-blue-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+            ]"
+          >
+            <div class="flex items-start gap-3">
+              <div :class="[
+                'w-10 h-10 rounded-lg flex items-center justify-center text-lg',
+                form.displayMode === 'all-at-once'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+              ]">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z"/>
+                </svg>
+              </div>
+              <div class="flex-1 text-left">
+                <h4 :class="[
+                  'font-semibold mb-1',
+                  form.displayMode === 'all-at-once'
+                    ? 'text-blue-900'
+                    : 'text-gray-900'
+                ]">全頁模式</h4>
+                <p :class="[
+                  'text-xs leading-relaxed',
+                  form.displayMode === 'all-at-once'
+                    ? 'text-blue-700'
+                    : 'text-gray-500'
+                ]">所有問題一次展開，方便總覽，提交時統一驗證</p>
+              </div>
+            </div>
+            <!-- 選中指示器 -->
+            <div v-if="form.displayMode === 'all-at-once'"
+                 class="absolute top-3 right-3 w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+          </button>
         </div>
       </div>
 
       <!-- 問卷設定 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <span>⚙️</span>
+      <div class="mb-8">
+        <h3 class="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
           <span>問卷設定</span>
         </h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- 自動跳到下一題 -->
-          <div>
-            <label class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span>⏩</span>
-                <span class="text-sm font-medium text-gray-700">自動跳到下一題</span>
+          <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+            <div class="flex items-start justify-between mb-2">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-sm font-medium text-gray-900">自動跳到下一題</h4>
+                  <p class="text-xs text-gray-500 mt-1">選擇答案後自動前往下一題</p>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="sr-only peer"
+                  :checked="form.autoAdvance !== false"
+                  @change="form.autoAdvance = ($event.target as HTMLInputElement).checked"
+                />
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+
+            <!-- 延遲時間滑桿（與自動跳題關聯） -->
+            <div v-if="form.autoAdvance !== false" class="mt-4 pt-4 border-t border-gray-100">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-600">跳題延遲</span>
+                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">{{ form.autoAdvanceDelay ?? 300 }}ms</span>
               </div>
               <input
-                type="checkbox"
-                class="toggle toggle-primary"
-                :checked="form.autoAdvance !== false"
-                @change="form.autoAdvance = ($event.target as HTMLInputElement).checked"
+                type="range"
+                min="100"
+                max="1000"
+                step="50"
+                :value="form.autoAdvanceDelay ?? 300"
+                @input="form.autoAdvanceDelay = parseInt(($event.target as HTMLInputElement).value)"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
-            </label>
-            <p class="text-xs text-gray-500 mt-1">選擇單選/評分後是否自動前往下一題</p>
-          </div>
-
-          <!-- 顯示進度條 -->
-          <div>
-            <label class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span>📊</span>
-                <span class="text-sm font-medium text-gray-700">顯示進度條</span>
+              <div class="flex justify-between mt-1">
+                <span class="text-xs text-gray-400">快速</span>
+                <span class="text-xs text-gray-400">緩慢</span>
               </div>
-              <input
-                type="checkbox"
-                class="toggle toggle-primary"
-                :checked="form.showProgress !== false"
-                @change="form.showProgress = ($event.target as HTMLInputElement).checked"
-              />
-            </label>
-            <p class="text-xs text-gray-500 mt-1">在填寫頁面頂部顯示進度</p>
-          </div>
-
-          <!-- 延遲時間（僅在自動跳題開啟時顯示） -->
-          <div class="md:col-span-2" v-if="form.autoAdvance !== false">
-            <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-              <span>⏱️</span>
-              <span>自動跳題延遲（毫秒）</span>
-              <span class="ml-2 text-xs text-gray-500">{{ form.autoAdvanceDelay ?? 300 }} ms</span>
-            </label>
-            <input
-              type="range"
-              min="100"
-              max="1000"
-              step="50"
-              :value="form.autoAdvanceDelay ?? 300"
-              @input="form.autoAdvanceDelay = parseInt(($event.target as HTMLInputElement).value)"
-              class="w-full accent-blue-500"
-            />
-            <p class="text-xs text-gray-500 mt-1">設定自動跳題前的延遲時間（100-1000ms）</p>
+            </div>
           </div>
 
           <!-- 允許回到上一題 -->
-          <div>
-            <label class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span>↩️</span>
-                <span class="text-sm font-medium text-gray-700">允許回到上一題</span>
+          <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-sm font-medium text-gray-900">允許回到上一題</h4>
+                  <p class="text-xs text-gray-500 mt-1">填寫者可返回修改答案</p>
+                </div>
               </div>
-              <input
-                type="checkbox"
-                class="toggle toggle-primary"
-                :checked="form.allowGoBack !== false"
-                @change="form.allowGoBack = ($event.target as HTMLInputElement).checked"
-              />
-            </label>
-            <p class="text-xs text-gray-500 mt-1">是否允許填寫者返回上一題</p>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="sr-only peer"
+                  :checked="form.allowGoBack !== false"
+                  @change="form.allowGoBack = ($event.target as HTMLInputElement).checked"
+                />
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 顯示進度條 -->
+          <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+            <div class="flex items-start justify-between">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <h4 class="text-sm font-medium text-gray-900">顯示進度條</h4>
+                  <p class="text-xs text-gray-500 mt-1">讓填寫者了解完成進度</p>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  class="sr-only peer"
+                  :checked="form.showProgress !== false"
+                  @change="form.showProgress = ($event.target as HTMLInputElement).checked"
+                />
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
           </div>
         </div>
       </div>
