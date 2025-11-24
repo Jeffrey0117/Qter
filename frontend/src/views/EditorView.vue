@@ -295,18 +295,22 @@ const draggedQuestion = ref<Question | null>(null)
   let currentQuestion: Partial<Question> | null = null
   let inFrontMatter = false
   let frontMatterContent = ''
+  let frontMatterProcessed = false // 🔥 新增：記錄是否已處理過 front matter
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
 
-    // Front matter
-    if (line === '---' && !inFrontMatter) {
+    // Front matter - 只在文件開頭處理
+    if (line === '---' && !inFrontMatter && !frontMatterProcessed) {
+      console.log('🔍 [parseMarkdown] Starting front matter at line', i)
       inFrontMatter = true
       continue
     }
 
     if (line === '---' && inFrontMatter) {
+      console.log('🔍 [parseMarkdown] Ending front matter at line', i)
       inFrontMatter = false
+      frontMatterProcessed = true // 🔥 標記已處理過 front matter
       // Parse front matter (simplified)
       const frontMatterLines = frontMatterContent.split('\n')
       frontMatterLines.forEach(frontLine => {
