@@ -74,6 +74,15 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   authStore.checkAuth()
 
+  // 🔧 開發模式：繞過登入檢查（僅限 localhost）
+  const isDevMode = import.meta.env.DEV && window.location.hostname === 'localhost'
+
+  if (isDevMode && to.meta.requiresAuth) {
+    console.log('🔧 [Dev Mode] Bypassing auth check for:', to.path)
+    next()
+    return
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // 需要登入但未登入，導向登入頁
     next('/login')
