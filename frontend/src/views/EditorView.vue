@@ -326,6 +326,7 @@ const draggedQuestion = ref<Question | null>(null)
     // Question separator
     if (line === '---') {
       if (currentQuestion) {
+        console.log('🔍 [parseMarkdown] Separator found, pushing question:', currentQuestion.title)
         currentForm.questions!.push(currentQuestion as Question)
       }
       currentQuestion = null
@@ -373,14 +374,17 @@ const draggedQuestion = ref<Question | null>(null)
           currentQuestion.options = []
           // Parse options in next lines
           let optionIndex = i + 1
+          console.log('🔍 [parseMarkdown] Parsing options starting at line', optionIndex)
           while (optionIndex < lines.length && lines[optionIndex].trim().startsWith('- ')) {
             const optionText = lines[optionIndex].trim().substring(2)
+            console.log('🔍 [parseMarkdown] Found option:', optionText)
             currentQuestion.options!.push({
               id: generateHash(),
               text: optionText.replace(/"/g, '')
             })
             optionIndex++
           }
+          console.log('🔍 [parseMarkdown] Finished parsing options, next line index:', optionIndex, 'content:', lines[optionIndex]?.trim())
           i = optionIndex - 1
           break
       }
